@@ -16,7 +16,7 @@ services:
       - key: GOOGLE_GENAI_USE_VERTEXAI
         value: "false"
       - key: PROOFLOOP_MODEL
-        value: gemini-3.5-flash-lite
+        value: gemini-3.6-flash
       - key: PROOFLOOP_DATA_MODE
         value: demo
       - key: PROOFLOOP_PERSISTENCE_MODE

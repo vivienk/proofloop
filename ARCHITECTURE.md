@@ -6,7 +6,7 @@ flowchart TD
     C["Google Ads + Looker-shaped evidence"] --> D["Python evidence connectors"]
     D --> E["Google ADK diagnostic workflow"]
     B --> E
-    E --> F["Gemini 3.5 Flash-Lite"]
+    E --> F["Gemini 3.6 Flash"]
     F --> G["Typed Root Problem Record"]
     G --> H["Human approval gate"]
     H --> I["Intervention evaluation"]

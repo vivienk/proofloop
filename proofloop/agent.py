@@ -8,7 +8,7 @@ from .connectors import load_business_evidence
 from .schemas import DiagnosticDecision, RootProblemRecord
 
 
-MODEL = os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite")
+MODEL = os.getenv("PROOFLOOP_MODEL", "gemini-3.6-flash")
 
 signal_validator = LlmAgent(
     name="SignalValidator",

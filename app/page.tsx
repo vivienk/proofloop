@@ -769,7 +769,7 @@ export default function Home() {
         </div>
 
         <footer className="app-footer">
-          <span><Sparkles /> Gemini 3.5 Flash-Lite</span>
+          <span><Sparkles /> Gemini 3.6 Flash</span>
           <span>Google ADK</span>
           <span>Cloud Run</span>
           <span>Firestore</span>
