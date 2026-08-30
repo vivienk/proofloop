@@ -1,8 +1,10 @@
 """Evidence connectors.
 
-Demo mode uses a privacy-safe incident bundle. Live mode reads Google Ads with
-GAQL and a governed Looker query. Credentials are read only from environment
-variables and are never written to agent state or model prompts.
+Demo data mode uses a privacy-safe incident bundle. Live data mode reads Google
+Ads with GAQL and a governed Looker query. Data-source selection is independent
+from persistence, so demo evidence can still be written to real Firestore.
+Credentials are read only from environment variables and are never written to
+agent state or model prompts.
 """
 
 from __future__ import annotations
@@ -14,6 +16,17 @@ from typing import Any
 
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "incident-pl0047.json"
+
+
+def _data_mode() -> str:
+    configured = os.getenv("PROOFLOOP_DATA_MODE")
+    if configured:
+        return configured.strip().lower()
+
+    # Backward compatibility with earlier deployments that used one flag for
+    # both evidence selection and persistence.
+    legacy_demo_mode = os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true"
+    return "demo" if legacy_demo_mode else "live"
 
 
 def _demo_bundle() -> dict[str, Any]:
@@ -91,7 +104,7 @@ def load_business_evidence(incident_id: str = "PL-0047") -> dict[str, Any]:
     with credentials scoped outside the model context.
     """
 
-    if os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true":
+    if _data_mode() == "demo":
         bundle = _demo_bundle()
         bundle["incident_id"] = incident_id
         return bundle

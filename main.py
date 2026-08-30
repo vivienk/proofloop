@@ -75,7 +75,14 @@ class ApprovalRequest(BaseModel):
 
 
 def _firestore_client():
-    if os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true":
+    configured_persistence = os.getenv("PROOFLOOP_PERSISTENCE_MODE")
+    if configured_persistence:
+        persistence_mode = configured_persistence.strip().lower()
+    else:
+        legacy_demo_mode = os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true"
+        persistence_mode = "none" if legacy_demo_mode else "firestore"
+
+    if persistence_mode != "firestore":
         return None
     from google.cloud import firestore
     from google.oauth2 import service_account
@@ -122,10 +129,25 @@ async def service_index() -> dict[str, Any]:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    configured_data_mode = os.getenv("PROOFLOOP_DATA_MODE")
+    if configured_data_mode:
+        data_mode = configured_data_mode.strip().lower()
+    else:
+        legacy_demo_mode = os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true"
+        data_mode = "demo" if legacy_demo_mode else "live"
+
+    configured_persistence = os.getenv("PROOFLOOP_PERSISTENCE_MODE")
+    if configured_persistence:
+        persistence_mode = configured_persistence.strip().lower()
+    else:
+        legacy_demo_mode = os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true"
+        persistence_mode = "none" if legacy_demo_mode else "firestore"
+
     return {
         "status": "ok",
         "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite"),
-        "mode": "demo" if os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true" else "live",
+        "mode": data_mode,
+        "persistence": persistence_mode,
     }
 
 

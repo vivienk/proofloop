@@ -59,6 +59,17 @@ GOOGLE_API_KEY=your-private-key
 GOOGLE_GENAI_USE_VERTEXAI=false
 PROOFLOOP_MODEL=gemini-3.5-flash-lite
 PROOFLOOP_DEMO_MODE=true
+PROOFLOOP_DATA_MODE=demo
+PROOFLOOP_PERSISTENCE_MODE=none
+```
+
+Evidence selection and persistence are configured independently. For the
+hosted hackathon demo, use synthetic evidence with real Firestore persistence:
+
+```env
+PROOFLOOP_DATA_MODE=demo
+PROOFLOOP_PERSISTENCE_MODE=firestore
+GOOGLE_CLOUD_PROJECT=your-project-id
 ```
 
 Start the API:
