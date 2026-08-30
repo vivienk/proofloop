@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: proofloop-agent
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON_B64
+        sync: false
+      - key: GOOGLE_CLOUD_PROJECT
+        value: gen-lang-client-0215331923
+      - key: GOOGLE_GENAI_USE_VERTEXAI
+        value: "false"
+      - key: PROOFLOOP_MODEL
+        value: gemini-3.5-flash-lite
+      - key: PROOFLOOP_DEMO_MODE
+        value: "false"
+      - key: ALLOWED_ORIGINS
+        sync: false

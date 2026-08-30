@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart TD
-    A["Vercel Next.js interface"] --> B["Cloud Run FastAPI"]
+    A["Vercel Next.js interface"] --> B["Render FastAPI service"]
     C["Google Ads + Looker-shaped evidence"] --> D["Python evidence connectors"]
     D --> E["Google ADK diagnostic workflow"]
     B --> E
@@ -18,14 +18,14 @@ flowchart TD
 
 | Layer | Responsibility |
 |---|---|
-| Next.js on Vercel | Presents the six-stage diagnostic workbench and calls the Cloud Run API |
+| Next.js on Vercel | Presents the six-stage diagnostic workbench and calls the agent API |
 | FastAPI | Validates requests and exposes diagnosis, approval, and evaluation endpoints |
 | ADK | Sequences six specialized diagnostic agents and preserves session state |
 | Gemini | Synthesizes evidence, competes hypotheses, falsifies explanations, and produces typed decisions |
 | Connectors | Load source-labelled evidence without exposing credentials to prompts |
 | Pydantic schemas | Enforce Root Problem Record and intervention contracts |
 | Firestore | Persists diagnostic runs, approvals, proof records, and learned rules |
-| Cloud Run | Hosts the Python API with a dedicated service identity |
+| Render | Hosts the Dockerized Python API and ADK workflow |
 
 ## Structured agent contract
 
@@ -55,7 +55,7 @@ flowchart TD
 - Live connector secrets are read from runtime environment variables.
 - Source rows remain outside persistent ADK instructions unless explicitly selected as evidence.
 - Every evidence-backed conclusion carries source IDs and reliability labels.
-- Firestore writes use the Cloud Run service account rather than embedded credentials.
+- Firestore writes use a least-privilege service-account credential stored only in Render's secret environment.
 
 ## Failure handling
 

@@ -1,7 +1,8 @@
-"""FastAPI entrypoint for ProofLoop on Cloud Run."""
+"""FastAPI entrypoint for the ProofLoop agent service."""
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import uuid
@@ -73,8 +74,28 @@ def _firestore_client():
     if os.getenv("PROOFLOOP_DEMO_MODE", "true").lower() == "true":
         return None
     from google.cloud import firestore
+    from google.oauth2 import service_account
 
-    return firestore.AsyncClient(project=os.getenv("GOOGLE_CLOUD_PROJECT"))
+    credentials = None
+    encoded_credentials = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
+    if encoded_credentials:
+        try:
+            service_account_info = json.loads(
+                base64.b64decode(encoded_credentials).decode("utf-8")
+            )
+            credentials = service_account.Credentials.from_service_account_info(
+                service_account_info
+            )
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                "GOOGLE_SERVICE_ACCOUNT_JSON_B64 is not a valid base64-encoded "
+                "Google service-account JSON document."
+            ) from exc
+
+    return firestore.AsyncClient(
+        project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+        credentials=credentials,
+    )
 
 
 async def _persist(collection: str, document_id: str, payload: dict[str, Any]) -> None:

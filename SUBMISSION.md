@@ -25,7 +25,7 @@ The demo begins with paid clicks increasing 22.4% while purchase conversion fall
 - Gemini 3.5 Flash-Lite
 - Google ADK for Python
 - Next.js 16 on Vercel
-- Cloud Run
+- Render Docker web service
 - Firestore
 - FastAPI and Pydantic
 - Google Ads and Looker connector scaffolding
@@ -54,7 +54,7 @@ Evaluate the intervention: 41.2% control progression versus 48.1% rollback progr
 
 ### 3:20–4:00 — Google Cloud proof and architecture
 
-Show the Cloud Run request, deployed service URL/log, Firestore diagnostic and proof records, repository, and architecture diagram. Close with: "ProofLoop does not merely recommend what to do. It determines what problem is worth solving, proves whether the intervention worked, and makes the business smarter the next time."
+Show the public Render API request and logs, then show the diagnostic and proof records written into Google Cloud Firestore. Explain that Firestore is the required Google Cloud infrastructure service. Close with: "ProofLoop does not merely recommend what to do. It determines what problem is worth solving, proves whether the intervention worked, and makes the business smarter the next time."
 
 ## Limitations
 

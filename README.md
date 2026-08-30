@@ -11,7 +11,7 @@ Frontend: deployed on Vercel from the repository root.
 - Gemini 3.5 Flash-Lite (configurable to newer Gemini models)
 - Google Agent Development Kit (ADK)
 - FastAPI
-- Google Cloud Run
+- Render Docker web service
 - Firestore
 
 ## Diagnostic workflow
@@ -34,10 +34,10 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the interface displays the labeled example incident but will not claim that Gemini ran or allow a simulated approval. To connect the real agent, add the Cloud Run service URL to `.env.local`:
+Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the interface displays the labeled example incident but will not claim that Gemini ran or allow a simulated approval. To connect the real agent, add the public backend URL to `.env.local`:
 
 ```env
-NEXT_PUBLIC_PROOFLOOP_API_URL=https://your-cloud-run-service.run.app
+NEXT_PUBLIC_PROOFLOOP_API_URL=https://proofloop-agent.onrender.com
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
@@ -93,24 +93,15 @@ curl -X POST http://127.0.0.1:8080/v1/interventions/RUN_ID/approve \
 curl -X POST http://127.0.0.1:8080/v1/interventions/RUN_ID/evaluate
 ```
 
-## Cloud Run deployment
+## Render backend deployment
 
-Deploy from this directory after creating the Gemini secret and a service account with Secret Manager access:
+`render.yaml` deploys the existing Dockerized FastAPI/ADK service as a Render web service. Create a Render Blueprint from this repository and provide the three secret values requested during setup:
 
-```bash
-gcloud run deploy proofloop-agent \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --memory 1Gi \
-  --timeout 300 \
-  --min-instances 0 \
-  --max-instances 1 \
-  --set-secrets GOOGLE_API_KEY=proofloop-gemini-key:latest \
-  --set-env-vars PROOFLOOP_MODEL=gemini-3.5-flash-lite,PROOFLOOP_DEMO_MODE=false,ALLOWED_ORIGINS=https://YOUR_VERCEL_DOMAIN
-```
+- `GOOGLE_API_KEY`: the Gemini API key
+- `GOOGLE_SERVICE_ACCOUNT_JSON_B64`: a base64-encoded credential for the `proofloop-runner` service account
+- `ALLOWED_ORIGINS`: the exact Vercel production origin, without a trailing slash
 
-Cloud Run uses its service identity for Firestore. The Gemini API key stays in Secret Manager and is never exposed to the frontend.
+The remaining runtime values are defined in `render.yaml`. Never commit either credential. The service-account key should retain only the already-granted `roles/datastore.user` permission and should be rotated after the hackathon.
 
 ## Vercel deployment
 
@@ -118,10 +109,10 @@ The repository root is a standard Next.js project. Import `vivienk/proofloop` in
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://YOUR_VERCEL_DOMAIN
-NEXT_PUBLIC_PROOFLOOP_API_URL=https://your-cloud-run-service.run.app
+NEXT_PUBLIC_PROOFLOOP_API_URL=https://proofloop-agent.onrender.com
 ```
 
-Every push to `main` triggers a new Vercel production build. The Python backend continues to deploy separately from the same repository using its root `Dockerfile`.
+Every push to `main` triggers a new Vercel production build and a Render backend deployment. The frontend and agent remain separately addressable while sharing the same repository.
 
 ## API
 
