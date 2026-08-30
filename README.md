@@ -1,6 +1,6 @@
 # ProofLoop
 
-ProofLoop is a self-improving business diagnostic agent for founders and small teams. It turns an observed business anomaly into an evidence-backed root-problem record, proposes a bounded intervention, verifies the outcome, and stores a reusable operating rule.
+ProofLoop is an autonomous business investigation engine for founders and small teams. It locates the failing process and standard—not just the visible symptom—then proposes a bounded intervention, verifies the outcome, updates the operating standard, and monitors what was learned.
 
 Frontend: https://proofloop-flywheel.vercel.app
 
@@ -16,19 +16,38 @@ Agent API: https://proofloop-agent.onrender.com
 - Render Docker web service
 - Firestore
 
-## Diagnostic workflow
+## Canonical decision loop
 
-The hosted demo runs these six proof gates in one schema-constrained ADK model
-call to reduce latency and exposure to transient provider-capacity errors. The
-full sequential six-agent implementation remains available with
+```text
+Problem → Process → Step → Standard → Gap → 5 Whys
+→ System Factors → Ownership → Hypotheses → Intervention
+→ Verification → Standardization → Monitoring
+```
+
+The system compares `Standard vs Evidence vs Verification` and investigates
+seven possible cause domains: people, process, technology, inputs, environment,
+measurement, and incentives. It also separates technical, operational,
+execution, quality, and approval ownership.
+
+## Hosted investigation workflow
+
+The hosted demo runs the complete investigation contract in one
+schema-constrained ADK model call to reduce latency and exposure to transient
+provider-capacity errors. The full sequential six-agent implementation remains available with
 `PROOFLOOP_EXECUTION_MODE=sequential`.
 
-1. `SignalValidator` checks whether the anomaly is real.
-2. `SystemsInvestigator` frames the problem using adaptive 5W1H.
-3. `HypothesisBuilder` generates competing causal mechanisms.
-4. `FalsificationAgent` tries to disprove the leading explanation.
-5. `RootProblemDefiner` creates the typed Root Problem Record.
-6. `InterventionPlanner` defines a reversible test and verification contract.
+1. Define and validate the incident with adaptive 5W1H.
+2. Map the process, failing step, expected standard, actual execution, and gap.
+3. Run evidence-backed 5 Whys and seven-factor systems analysis.
+4. Inspect ownership, authority, incentives, and the quality escape.
+5. Generate and falsify three to five competing causal mechanisms.
+6. Define the smallest consequential and controllable root problem.
+7. Lock a reversible intervention and verification contract.
+
+Python recomputes the proof gate outside Gemini. The agent advances only when a
+supported cause has at least two independent sources, credible alternatives were
+considered, and human approval is required. Otherwise it terminates as
+`insufficient_evidence` or `conflicting_evidence` with a named next test.
 
 The demo incident uses synthetic, privacy-safe Google Ads-, Looker-, release-log-, and customer-voice-shaped evidence. Live connector scaffolding is isolated from model prompts and reads credentials only from environment variables.
 
@@ -138,17 +157,20 @@ Every push to `main` triggers a new Vercel production build and a Render backend
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Runtime, model, and mode check |
-| `GET` | `/v1/model` | Publish the six-stage reasoning contract and typed JSON schemas |
+| `GET` | `/v1/model` | Publish the decision loop, limits, and typed JSON schemas |
 | `POST` | `/v1/diagnose` | Run the complete ADK diagnostic proof gate |
 | `POST` | `/v1/interventions/{run_id}/approve` | Record scoped human authorization |
 | `POST` | `/v1/interventions/{run_id}/evaluate` | Evaluate the locked intervention contract |
 
-The web app binds the returned `DiagnosticDecision` directly into the evidence ledger, competing hypotheses, Root Problem Record, intervention contract, evaluation, and learned rule. UI state advances only after the corresponding API request succeeds.
+The web app binds the returned `DiagnosticDecision` directly into the evidence ledger, process/standard/gap model, system factors, competing hypotheses, intervention contract, evaluation, updated standard, and learned rule. UI state advances only after the corresponding API request succeeds.
 
 ## Safety principles
 
 - The initial signal is never labeled as the root problem.
 - A cause remains a hypothesis until the intervention produces its predicted result.
+- Unsupported standards, owners, incentives, and causal links are marked unknown.
+- Evidence-state labels replace ungrounded numerical confidence scores.
+- Gemini cannot bypass the deterministic Python proof gate.
 - Material claims cite evidence IDs.
 - External, financial, destructive, or irreversible actions require human approval.
 - Interventions define success metrics, guardrails, observation windows, and stop conditions before execution.

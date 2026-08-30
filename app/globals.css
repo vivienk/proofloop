@@ -206,7 +206,7 @@ svg { width: 1em; height: 1em; }
 .evidence-state span { font-size: 8px; font-weight: 800; color: var(--muted-ink); }
 .evidence-count { display: flex; gap: 7px; justify-content: flex-end; font-size: 9px; font-weight: 700; }
 .supports { color: var(--green); }.contradicts { color: var(--coral); }
-.system-map { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding-top: 8px; }
+.system-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 7px; padding-top: 8px; }
 .system-map article { min-height: 135px; padding: 13px; border: 1px solid var(--line); display: flex; justify-content: space-between; flex-direction: column; }
 .system-map article span { text-transform: uppercase; letter-spacing: .1em; color: var(--muted-ink); font-size: 8px; }
 .system-map article strong { font-size: 11px; line-height: 1.4; }

@@ -14,15 +14,16 @@ Founders have dashboards that report what happened and AI tools that produce gen
 
 ## Solution
 
-ProofLoop investigates a business anomaly before recommending action. It validates the signal, maps the affected system, generates competing causal hypotheses, tries to disprove its leading explanation, creates a typed Root Problem Record, proposes a reversible intervention, verifies the result, and converts validated outcomes into reusable operating rules.
+ProofLoop investigates a business anomaly before recommending action. It maps the failing process and step, compares the expected standard with actual execution, runs evidence-backed 5 Whys and seven-factor systems analysis, checks ownership and quality control, falsifies competing hypotheses, proposes a reversible intervention, verifies the result, and converts the outcome into a stronger operating standard.
 
-For reliable live judging, the hosted ADK agent applies the six-stage proof
-contract in one schema-constrained Gemini call. The repository also includes
-the expanded sequential six-agent implementation.
+For reliable live judging, one hosted ADK orchestrator applies the complete
+decision contract in one schema-constrained Gemini call. A deterministic Python
+state controller independently enforces the proof gate. The repository retains
+the sequential six-agent workflow as an evaluation mode.
 
 ## Demonstrated workflow
 
-The demo begins with paid clicks increasing 22.4% while purchase conversion falls 24.1%. ProofLoop combines synthetic Google Ads-, Looker-, release-log-, and customer-voice-shaped evidence. It determines that acquisition remains healthy while a Mobile Safari pricing-selector failure is the leading supported cause. It requests approval for a scoped rollback, evaluates the locked metrics, measures a 16.8% relative lift, and records a verified release-quality rule.
+The demo begins with paid clicks increasing 22.4% while purchase conversion falls 24.1%. ProofLoop combines synthetic Google Ads-, Looker-, release-, quality-control-, and customer-voice-shaped evidence. It locates the failure at checkout's pricing-selection step, identifies the missing Mobile Safari release control, and rules down acquisition quality as the primary cause. It requests approval for a scoped rollback, evaluates the locked metrics, measures a 16.8% relative lift, updates the release standard, and records a recurrence monitor.
 
 ## Technology
 
@@ -51,7 +52,7 @@ Run the diagnosis. Show signal validation, the adaptive 5W1H frame, evidence sou
 
 ### 1:20–2:05 — What is actually wrong
 
-Show the Root Problem Record. Emphasize the distinction between signal, symptom, business problem, proximate cause, and systemic cause. Point out that the status is `supported`, not intervention-validated.
+Show the Investigation Record. Emphasize `Process → Step → Standard → Gap`, the seven system factors, ownership, the external quality escape, and competing hypotheses. Point out that Python—not Gemini—decides whether the proof gate passed, and the cause is still only `supported` before intervention.
 
 ### 2:05–2:45 — Guarded action
 
@@ -59,7 +60,7 @@ Show the targeted rollback, precommitted success metric, observation window, gua
 
 ### 2:45–3:20 — Verification and learning
 
-Evaluate the intervention: 41.2% control progression versus 48.1% rollback progression, a 16.8% relative lift with guardrails passing. Show the verified operating rule entering memory.
+Evaluate the intervention: 41.2% control progression versus 48.1% rollback progression, a 16.8% relative lift with guardrails passing. Show the verified rule, updated release checklist, new Safari control, and recurrence monitor entering memory.
 
 ### 3:20–4:00 — Google Cloud proof and architecture
 

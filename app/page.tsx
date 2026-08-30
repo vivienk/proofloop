@@ -70,6 +70,48 @@ type RootProblemRecord = {
   systemic_cause: string;
   status: string;
   evidence: EvidenceReference[];
+  process_gap: {
+    process: string;
+    failing_step: string;
+    expected_standard: string;
+    actual_execution: string;
+    gap: string;
+    standard_evidence_id: string;
+  };
+  five_whys: Array<{ level: number; answer: string; evidence_ids: string[] }>;
+  system_factors: Array<{
+    domain: string;
+    finding: string;
+    evidence_ids: string[];
+    status: "implicated" | "not_implicated" | "unknown";
+  }>;
+  ownership: {
+    technical_owner: string;
+    operational_owner: string;
+    execution_owner: string;
+    quality_owner: string;
+    decision_approver: string;
+    accountability_gap: string;
+  };
+  incentives: {
+    current_incentive: string;
+    behavioral_effect: string;
+    alignment_gap: string;
+  };
+  quality: {
+    escape_type: "internal" | "external" | "not_determined";
+    detection_point: string;
+    control_gap: string;
+  };
+  hypotheses: Array<{
+    hypothesis: string;
+    mechanism: string;
+    status: "plausible" | "supported" | "disproved";
+    supporting_evidence_ids: string[];
+    contradicting_evidence_ids: string[];
+    missing_evidence: string[];
+    discriminating_test: string;
+  }>;
   alternatives_considered: string[];
   missing_evidence: string[];
   disconfirming_test: string;
@@ -96,9 +138,22 @@ type DiagnosticEnvelope = {
   created_at: string;
   model_version: string;
   agent_stages: string[];
+  investigation_limits?: {
+    max_rounds: number;
+    max_tool_calls: number;
+    max_hypotheses: number;
+    minimum_independent_sources: number;
+  };
   decision: {
     root_problem: RootProblemRecord;
     intervention: InterventionPlan;
+    investigation: {
+      termination_state: "confirmed" | "insufficient_evidence" | "conflicting_evidence";
+      independent_source_count: number;
+      hypotheses_considered: number;
+      proof_gate_passed: boolean;
+      stopping_reason: string;
+    };
     next_stage: "gather_evidence" | "request_approval" | "monitor";
     plain_language_summary: string;
   };
@@ -115,6 +170,13 @@ type EvaluationResult = {
     guardrails_passed: boolean;
   };
   learned_rule: string;
+  standardization?: {
+    standard_updated: string;
+    accountable_owner: string;
+    new_control: string;
+    monitoring_rule: string;
+    recurrence_status: string;
+  };
 };
 
 type HypothesisCard = {
@@ -198,11 +260,13 @@ const demoHypotheses: HypothesisCard[] = [
 ];
 
 const runSteps = [
-  "Validating metric definitions",
-  "Comparing affected segments",
-  "Testing competing explanations",
-  "Tracing recent business changes",
-  "Defining the root problem",
+  "Defining the incident with 5W1H",
+  "Mapping the process and failing step",
+  "Comparing standard versus actual execution",
+  "Testing seven system-factor domains",
+  "Checking ownership, incentives, and quality",
+  "Falsifying competing explanations",
+  "Locking the intervention and proof gate",
 ];
 
 const API_URL = (
@@ -281,6 +345,16 @@ export default function Home() {
   }, [rootProblem]);
   const displayHypotheses = useMemo<HypothesisCard[]>(() => {
     if (!rootProblem) return demoHypotheses;
+    if (rootProblem.hypotheses?.length) {
+      return rootProblem.hypotheses.map((item, index) => ({
+        rank: index + 1,
+        title: item.hypothesis,
+        confidence: humanize(item.status),
+        supporting: item.supporting_evidence_ids.length,
+        contradicting: item.contradicting_evidence_ids.length,
+        next: item.discriminating_test,
+      }));
+    }
     const supporting = rootProblem.evidence.filter((item) => item.relationship === "supports").length;
     const contradicting = rootProblem.evidence.filter((item) => item.relationship === "contradicts").length;
     return [
@@ -487,7 +561,7 @@ export default function Home() {
             <textarea value={concern} onChange={(event) => setConcern(event.target.value)} maxLength={1000} rows={2} />
           </label>
           <div className="intake-action">
-            <span><FileJson2 /> Typed Root Problem Record</span>
+            <span><FileJson2 /> Typed Investigation Record</span>
             <Button onClick={runDiagnostic} disabled={isRunning}>
               {isRunning ? <RefreshCw className="animate-spin" /> : <Sparkles />}
               {isRunning ? "Agent investigating" : "Run AI diagnosis"}
@@ -597,13 +671,22 @@ export default function Home() {
                   ))}
                 </TabsContent>
                 <TabsContent value="system" className="system-map">
-                  {[
-                    ["Market", "Demand stable", "clear"],
-                    ["Acquisition", "Traffic quality stable", "clear"],
-                    ["Frontstage", "Pricing interaction failing", "risk"],
-                    ["Backstage", "Release controls missing", "risk"],
-                    ["Economics", "$4.8k monthly exposure", "watch"],
-                  ].map(([name, detail, tone]) => <article key={name} className={tone}><span>{name}</span><strong>{detail}</strong></article>)}
+                  {(rootProblem?.system_factors?.length
+                    ? rootProblem.system_factors.map((factor) => [
+                        humanize(factor.domain),
+                        factor.finding,
+                        factor.status === "implicated" ? "risk" : factor.status === "not_implicated" ? "clear" : "watch",
+                      ])
+                    : [
+                        ["People", "No personnel cause evidenced", "clear"],
+                        ["Process", "Cross-browser release gate missing", "risk"],
+                        ["Technology", "Pricing interaction failing", "risk"],
+                        ["Inputs", "Traffic quality stable", "clear"],
+                        ["Environment", "No external shift evidenced", "clear"],
+                        ["Measurement", "Instrumentation checks passed", "clear"],
+                        ["Incentives", "No incentive conflict evidenced", "watch"],
+                      ]
+                  ).map(([name, detail, tone]) => <article key={name} className={tone}><span>{name}</span><strong>{detail}</strong></article>)}
                 </TabsContent>
               </Tabs>
             </section>
@@ -613,7 +696,9 @@ export default function Home() {
             <section className="stage-panel root-panel">
               <div className="panel-heading">
                 <div><span className="section-number">03 / Define the actual problem</span><h2>What is actually wrong?</h2></div>
-                <Badge variant="outline" className="status-badge supported"><ShieldCheck /> {rootProblem ? humanize(rootProblem.status) : "Supported"} · ready to test</Badge>
+                <Badge variant="outline" className={`status-badge ${diagnostic?.decision.investigation?.proof_gate_passed !== false ? "supported" : "alert"}`}>
+                  <ShieldCheck /> {diagnostic?.decision.investigation ? humanize(diagnostic.decision.investigation.termination_state) : rootProblem ? humanize(rootProblem.status) : "Supported"} · {diagnostic?.decision.investigation?.proof_gate_passed === false ? "needs evidence" : "ready to test"}
+                </Badge>
               </div>
 
               <div className="root-layout">
@@ -623,17 +708,17 @@ export default function Home() {
                   <div className="root-meta">
                     <div><span>Affected</span><strong>{rootProblem?.affected_segment ?? "38% of mobile Safari sessions"}</strong></div>
                     <div><span>Business consequence</span><strong>{rootProblem?.business_impact ?? "$4.8k monthly revenue at risk"}</strong></div>
-                    <div><span>Actual vs expected</span><strong>{rootProblem?.actual_state ?? "Decline began 34 min after release v1.8.4"}</strong></div>
+                    <div><span>Standard vs actual gap</span><strong>{rootProblem?.process_gap?.gap ?? rootProblem?.actual_state ?? "Decline began 34 min after release v1.8.4"}</strong></div>
                   </div>
                 </article>
 
                 <article className="causal-chain">
                   <div className="causal-label">Causal chain</div>
-                  <div className="cause-node"><span>Observed signal</span><strong>{rootProblem?.signal ?? "Purchase conversion ↓ 24%"}</strong></div>
+                  <div className="cause-node"><span>Process · failing step</span><strong>{rootProblem?.process_gap ? `${rootProblem.process_gap.process} · ${rootProblem.process_gap.failing_step}` : "Checkout · pricing selection"}</strong></div>
                   <div className="chain-line"><ChevronRight /></div>
-                  <div className="cause-node"><span>Proximate cause</span><strong>{rootProblem?.proximate_cause ?? "CTA cannot be activated"}</strong></div>
+                  <div className="cause-node"><span>Standard → actual gap</span><strong>{rootProblem?.process_gap?.gap ?? "Selected plan should enable CTA → CTA remains disabled"}</strong></div>
                   <div className="chain-line"><ChevronRight /></div>
-                  <div className="cause-node systemic"><span>Systemic root cause</span><strong>{rootProblem?.systemic_cause ?? "No mobile-browser release gate"}</strong></div>
+                  <div className="cause-node systemic"><span>Root problem</span><strong>{rootProblem?.systemic_cause ?? "No mobile-browser release gate"}</strong></div>
                 </article>
               </div>
 
@@ -653,18 +738,20 @@ export default function Home() {
               </div>
 
               <article className="model-contract">
-                <div className="contract-heading"><FileJson2 /><div><span>Structured AI model</span><strong>RootProblemRecord · validated before action</strong></div></div>
+                <div className="contract-heading"><FileJson2 /><div><span>Structured AI model</span><strong>Investigation state · validated before action</strong></div></div>
                 <div className="contract-fields">
-                  <div><span>Expected state</span><strong>{rootProblem?.expected_state ?? "Conversion remains stable as qualified traffic grows."}</strong></div>
-                  <div><span>Actual state</span><strong>{rootProblem?.actual_state ?? "Mobile Safari progression declined after the pricing release."}</strong></div>
+                  <div><span>Expected standard</span><strong>{rootProblem?.process_gap?.expected_standard ?? rootProblem?.expected_state ?? "Conversion remains stable as qualified traffic grows."}</strong></div>
+                  <div><span>Actual execution</span><strong>{rootProblem?.process_gap?.actual_execution ?? rootProblem?.actual_state ?? "Mobile Safari progression declined after the pricing release."}</strong></div>
+                  <div><span>Accountability gap</span><strong>{rootProblem?.ownership?.accountability_gap ?? "Cross-browser quality ownership was not enforced."}</strong></div>
+                  <div><span>Quality escape</span><strong>{rootProblem?.quality ? `${humanize(rootProblem.quality.escape_type)} · ${rootProblem.quality.control_gap}` : "External · customer-facing regression"}</strong></div>
                   <div><span>Missing evidence</span><strong>{rootProblem?.missing_evidence.join(" · ") || "Safari reproduction test"}</strong></div>
                   <div><span>Next decision gate</span><strong>{diagnostic ? humanize(diagnostic.decision.next_stage) : "Request approval"}</strong></div>
                 </div>
               </article>
 
               <div className="decision-bar">
-                <div><LockKeyhole /><span><strong>Proof gate passed</strong> The proposed intervention is bounded, reversible, and measurable.</span></div>
-                <Button onClick={() => setStage("act")}>Review intervention <ArrowRight /></Button>
+                <div><LockKeyhole /><span><strong>{diagnostic?.decision.investigation?.proof_gate_passed === false ? "Proof gate paused" : "Proof gate passed"}</strong> {diagnostic?.decision.investigation?.stopping_reason ?? "The proposed intervention is bounded, reversible, and measurable."}</span></div>
+                <Button onClick={() => setStage(diagnostic?.decision.investigation?.proof_gate_passed === false ? "investigate" : "act")}>{diagnostic?.decision.investigation?.proof_gate_passed === false ? "Review missing evidence" : "Review intervention"} <ArrowRight /></Button>
               </div>
             </section>
           )}
@@ -688,7 +775,7 @@ export default function Home() {
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button disabled={actionStatus !== "ready" || !runId} className="launch-button"><Play /> {!runId ? "Run live diagnosis first" : actionStatus === "ready" ? "Approve and launch test" : "Test already launched"}</Button>
+                      <Button disabled={actionStatus !== "ready" || !runId || diagnostic?.decision.investigation?.proof_gate_passed === false} className="launch-button"><Play /> {!runId ? "Run live diagnosis first" : diagnostic?.decision.investigation?.proof_gate_passed === false ? "More evidence required" : actionStatus === "ready" ? "Approve and launch test" : "Test already launched"}</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -709,7 +796,7 @@ export default function Home() {
                     ["Create experiment record", "Firestore", true],
                     ["Open implementation issue", "GitHub", true],
                     ["Route guarded cohort", "Feature flag", false],
-                    ["Start measurement window", "Cloud Run", false],
+                    ["Start measurement window", "Render", false],
                     ["Evaluate and store learning", "Gemini + Firestore", false],
                   ].map(([task, system, done], i) => <div key={String(task)}><span className={done ? "done" : "queued"}>{done ? <Check /> : i + 1}</span><div><strong>{task}</strong><span>{system}</span></div></div>)}
                 </article>
@@ -759,9 +846,9 @@ export default function Home() {
                 <div className="learning-evidence"><span><CheckCircle2 /> Supported by intervention {diagnostic?.incident_id ?? "PL–0047"}</span><span><Database /> {evaluation?.outcome.sample_size.toLocaleString() ?? "1,284"} evaluated sessions</span><span><Clock3 /> {evaluation ? new Date(evaluation.evaluated_at).toLocaleDateString() : "Example learning"}</span></div>
               </div>
               <div className="next-time-grid">
-                <article><span>Next detection</span><strong>Watch pricing progression by browser after every release.</strong></article>
-                <article><span>Next diagnosis</span><strong>Prioritize frontstage failure before acquisition quality.</strong></article>
-                <article><span>Next prevention</span><strong>Add Safari checks to the release readiness gate.</strong></article>
+                <article><span>Standard updated</span><strong>{evaluation?.standardization?.standard_updated ?? "Revenue-critical frontend release checklist"}</strong></article>
+                <article><span>New control</span><strong>{evaluation?.standardization?.new_control ?? "Add Safari checks to the release readiness gate."}</strong></article>
+                <article><span>Monitor recurrence</span><strong>{evaluation?.standardization?.monitoring_rule ?? "Watch pricing progression by browser after every release."}</strong></article>
               </div>
               <button type="button" className="ledger-link"><span><GitBranch /> Open the complete proof ledger</span><ExternalLink /></button>
             </section>
@@ -771,7 +858,7 @@ export default function Home() {
         <footer className="app-footer">
           <span><Sparkles /> Gemini 3.5 Flash-Lite</span>
           <span>Google ADK</span>
-          <span>Cloud Run</span>
+          <span>Render</span>
           <span>Firestore</span>
           <span className="footer-note">
             {backendMode === "live"

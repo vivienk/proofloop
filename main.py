@@ -19,22 +19,34 @@ from pydantic import BaseModel, Field
 
 from proofloop.agent import compact_agent, root_agent
 from proofloop.connectors import load_business_evidence
-from proofloop.schemas import DiagnosticDecision, RootProblemRecord
+from proofloop.schemas import DiagnosticDecision, EvidenceState, RootProblemRecord
 
 
 APP_NAME = "proofloop"
-MODEL_VERSION = "proofloop-root-problem-v2"
+MODEL_VERSION = "proofloop-investigation-loop-v3"
 DEFAULT_ALLOWED_ORIGINS = (
     "http://localhost:3000,https://proofloop-flywheel.vercel.app"
 )
 AGENT_STAGES = [
-    "signal_validation",
-    "systems_investigation",
-    "hypothesis_generation",
-    "falsification",
+    "define_5w1h",
+    "map_process",
+    "locate_failing_step",
+    "check_standard",
+    "identify_gap",
+    "five_whys",
+    "system_factor_analysis",
+    "ownership_incentive_quality",
+    "hypothesis_falsification",
     "root_problem_definition",
     "intervention_planning",
 ]
+DECISION_LOOP = AGENT_STAGES + ["human_approval", "verify", "standardize", "monitor"]
+INVESTIGATION_LIMITS = {
+    "max_rounds": 4,
+    "max_tool_calls": 20,
+    "max_hypotheses": 5,
+    "minimum_independent_sources": 2,
+}
 session_service = InMemorySessionService()
 EXECUTION_MODE = os.getenv("PROOFLOOP_EXECUTION_MODE", "sequential").strip().lower()
 selected_agent = compact_agent if EXECUTION_MODE == "compact" else root_agent
@@ -43,6 +55,8 @@ runner = Runner(
     agent=selected_agent,
     session_service=session_service,
 )
+runtime_diagnostic_runs: dict[str, dict[str, Any]] = {}
+runtime_interventions: dict[str, dict[str, Any]] = {}
 
 app = FastAPI(
     title="ProofLoop Agent API",
@@ -119,13 +133,69 @@ async def _persist(collection: str, document_id: str, payload: dict[str, Any]) -
     await client.collection(collection).document(document_id).set(payload, merge=True)
 
 
+async def _load_record(collection: str, document_id: str) -> dict[str, Any] | None:
+    client = _firestore_client()
+    if client is None:
+        return None
+    snapshot = await client.collection(collection).document(document_id).get()
+    return snapshot.to_dict() if snapshot.exists else None
+
+
+def _enforce_proof_gate(
+    decision: DiagnosticDecision,
+) -> tuple[DiagnosticDecision, bool]:
+    """Recompute action eligibility deterministically outside the LLM."""
+
+    root_problem = decision.root_problem
+    independent_sources = len({item.source for item in root_problem.evidence})
+    hypothesis_count = len(root_problem.hypotheses)
+    alternatives_competed = hypothesis_count >= 3
+    supported_hypothesis = any(
+        hypothesis.status == "supported" for hypothesis in root_problem.hypotheses
+    )
+    proof_gate_passed = all(
+        [
+            root_problem.status == EvidenceState.SUPPORTED,
+            independent_sources >= INVESTIGATION_LIMITS["minimum_independent_sources"],
+            alternatives_competed,
+            supported_hypothesis,
+            decision.investigation.termination_state == "confirmed",
+            decision.intervention.approval_required,
+        ]
+    )
+
+    decision.investigation.independent_source_count = independent_sources
+    decision.investigation.hypotheses_considered = hypothesis_count
+    decision.investigation.proof_gate_passed = proof_gate_passed
+    if proof_gate_passed:
+        decision.next_stage = "request_approval"
+        decision.investigation.stopping_reason = (
+            "Supported cause, competing hypotheses, and at least two independent "
+            "evidence sources satisfy the action gate."
+        )
+    else:
+        decision.next_stage = "gather_evidence"
+        if decision.investigation.termination_state == "confirmed":
+            decision.investigation.termination_state = "insufficient_evidence"
+        decision.investigation.stopping_reason = (
+            "The deterministic proof gate requires more or clearer evidence before action."
+        )
+    return decision, proof_gate_passed
+
+
 @app.get("/")
 async def service_index() -> dict[str, Any]:
     return {
         "service": "ProofLoop Agent API",
         "status": "ok",
         "model_version": MODEL_VERSION,
-        "endpoints": ["/health", "/v1/model", "/v1/diagnose"],
+        "endpoints": [
+            "/health",
+            "/v1/model",
+            "/v1/diagnose",
+            "/v1/interventions/{run_id}/approve",
+            "/v1/interventions/{run_id}/evaluate",
+        ],
         "web_app": "https://proofloop-flywheel.vercel.app",
     }
 
@@ -164,6 +234,8 @@ async def structured_model() -> dict[str, Any]:
         "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite"),
         "execution_mode": EXECUTION_MODE,
         "stages": AGENT_STAGES,
+        "decision_loop": DECISION_LOOP,
+        "investigation_limits": INVESTIGATION_LIMITS,
         "root_problem_schema": RootProblemRecord.model_json_schema(),
         "decision_schema": DiagnosticDecision.model_json_schema(),
     }
@@ -222,20 +294,29 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail="Agent produced no final decision.")
 
     try:
-        decision = json.loads(final_text)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=502, detail="Agent decision was not valid JSON.") from exc
+        raw_decision = json.loads(final_text)
+        typed_decision = DiagnosticDecision.model_validate(raw_decision)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Agent decision did not satisfy the structured investigation contract.",
+        ) from exc
+
+    typed_decision, proof_gate_passed = _enforce_proof_gate(typed_decision)
+    decision = typed_decision.model_dump(mode="json")
 
     envelope = {
         "run_id": session_id,
         "incident_id": request.incident_id,
-        "status": "awaiting_approval",
+        "status": "awaiting_approval" if proof_gate_passed else "needs_evidence",
         "created_at": datetime.now(UTC).isoformat(),
         "model_version": MODEL_VERSION,
         "execution_mode": EXECUTION_MODE,
         "agent_stages": AGENT_STAGES,
+        "investigation_limits": INVESTIGATION_LIMITS,
         "decision": decision,
     }
+    runtime_diagnostic_runs[session_id] = envelope
     await _persist("diagnostic_runs", session_id, envelope)
     return envelope
 
@@ -244,6 +325,16 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
 async def approve_intervention(run_id: str, request: ApprovalRequest) -> dict[str, Any]:
     if not request.scope_acknowledged:
         raise HTTPException(status_code=400, detail="Intervention scope must be acknowledged.")
+    diagnostic_run = runtime_diagnostic_runs.get(run_id)
+    if diagnostic_run is None:
+        diagnostic_run = await _load_record("diagnostic_runs", run_id)
+    if diagnostic_run is None:
+        raise HTTPException(status_code=404, detail="Diagnostic run was not found.")
+    if diagnostic_run.get("status") != "awaiting_approval":
+        raise HTTPException(
+            status_code=409,
+            detail="This investigation has not passed the proof gate.",
+        )
     payload = {
         "run_id": run_id,
         "status": "monitoring",
@@ -251,12 +342,21 @@ async def approve_intervention(run_id: str, request: ApprovalRequest) -> dict[st
         "approved_at": datetime.now(UTC).isoformat(),
         "idempotency_key": f"approve:{run_id}",
     }
+    runtime_interventions[run_id] = payload
     await _persist("interventions", run_id, payload)
     return payload
 
 
 @app.post("/v1/interventions/{run_id}/evaluate")
 async def evaluate_intervention(run_id: str) -> dict[str, Any]:
+    intervention = runtime_interventions.get(run_id)
+    if intervention is None:
+        intervention = await _load_record("interventions", run_id)
+    if intervention is None or intervention.get("status") != "monitoring":
+        raise HTTPException(
+            status_code=409,
+            detail="The intervention must be approved before evaluation.",
+        )
     # The hackathon demo replays a privacy-safe post-intervention data partition.
     # Live mode should query the same governed metrics and comparison cohort that
     # were locked before approval.
@@ -275,6 +375,13 @@ async def evaluate_intervention(run_id: str) -> dict[str, Any]:
             "Revenue-critical interface releases must pass mobile Safari "
             "regression checks before full rollout."
         ),
+        "standardization": {
+            "standard_updated": "Revenue-critical frontend release checklist",
+            "accountable_owner": "Technical owner",
+            "new_control": "Required mobile Safari regression test before rollout",
+            "monitoring_rule": "Alert when segment conversion deviates more than 10% from baseline",
+            "recurrence_status": "monitoring",
+        },
     }
     await _persist("proof_records", run_id, payload)
     return payload

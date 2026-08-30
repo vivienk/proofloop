@@ -44,6 +44,36 @@
     "paid_search_arrivals": 4,
     "common_description": "The Continue button stays grey after choosing a plan."
   },
+  "operating_context": {
+    "process_standard": {
+      "evidence_id": "standard-011",
+      "process": "checkout",
+      "step": "pricing plan selection",
+      "expected_behavior": "Selecting an eligible plan enables the Continue button and allows progression to payment."
+    },
+    "release_control": {
+      "evidence_id": "qa-052",
+      "release": "v1.8.4",
+      "required_checks": ["desktop Chrome", "mobile Chrome", "server smoke test"],
+      "mobile_safari_required": false,
+      "named_accountable_owner": false
+    },
+    "ownership": {
+      "technical_owner": "Product Engineering",
+      "operational_owner": "Growth",
+      "execution_owner": "Frontend Engineering",
+      "quality_owner": "not assigned for cross-browser release coverage",
+      "decision_approver": "Product Lead"
+    },
+    "incentives": {
+      "evidence_id": "not_available",
+      "note": "No evidence connects incentives or performance targets to this incident."
+    },
+    "quality_escape": {
+      "classification": "external",
+      "detection_point": "customer reports and post-release conversion monitoring"
+    }
+  },
   "data_quality": {
     "tracking_continuity": "passed",
     "sample_sufficiency": "passed",

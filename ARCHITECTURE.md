@@ -1,66 +1,158 @@
-# ProofLoop architecture
+# ProofLoop decision architecture
+
+ProofLoop is an autonomous business investigation engine. It does not stop at
+finding an anomaly or producing advice. It maintains a falsifiable investigation
+until the evidence supports an action, then verifies the result and turns the
+outcome into an operating standard.
+
+## Canonical decision loop
 
 ```mermaid
 flowchart TD
-    A["Vercel Next.js interface"] --> B["Render FastAPI service"]
-    C["Google Ads + Looker-shaped evidence"] --> D["Python evidence connectors"]
-    D --> E["Google ADK diagnostic workflow"]
-    B --> E
-    E --> F["Gemini 3.5 Flash-Lite"]
-    F --> G["Typed Root Problem Record"]
-    G --> H["Human approval gate"]
-    H --> I["Intervention evaluation"]
-    I --> J["Firestore proof ledger"]
-    E -. "Hosted on" .-> B
+    A["Business signal"] --> B["Define with 5W1H"]
+    B --> C["Process · step · standard · gap"]
+    C --> D["5 Whys · system factors · ownership"]
+    D --> E["Compete and falsify hypotheses"]
+    E --> F{"Proof gate"}
+    F -- "Insufficient or conflicting" --> G["Gather discriminating evidence"]
+    G --> D
+    F -- "Confirmed" --> H["Approve bounded intervention"]
+    H --> I["Verify predicted outcome"]
+    I -- "Failed" --> D
+    I -- "Matched" --> J["Standardize · monitor · remember"]
 ```
 
-## Responsibilities
+The diagnostic backbone is:
 
-| Layer | Responsibility |
+`Problem → Process → Step → Standard → Gap → 5 Whys → System Factors → Ownership → Corrective Action → Verification → Standardization → Monitoring`
+
+## Runtime architecture
+
+```mermaid
+flowchart TD
+    A["Next.js workbench · Vercel"] --> B["FastAPI state controller · Render"]
+    B --> C["ADK orchestrator · compact mode"]
+    C --> D["Gemini 3.5 Flash-Lite"]
+    B --> E["Evidence tools and connectors"]
+    E --> C
+    D --> F["Typed Investigation Record"]
+    F --> G["Deterministic Python proof gate"]
+    G --> H["Human approval and verification"]
+    H --> I["Firestore proof ledger"]
+```
+
+The hosted path uses one schema-constrained ADK orchestrator call. This follows
+the architecture of one orchestrator plus deterministic state transitions and
+specialized tools; it avoids a fragile swarm of agents. The six-agent sequential
+workflow remains available as an evaluation mode, not the primary production
+path.
+
+## Investigation state contract
+
+Every run stores:
+
+```text
+Incident
+├── 5W1H frame and business impact
+├── process_gap
+│   ├── process
+│   ├── failing_step
+│   ├── expected_standard
+│   ├── actual_execution
+│   └── gap
+├── five_whys[]
+├── system_factors[]
+│   └── people · process · technology · inputs
+│       environment · measurement · incentives
+├── ownership
+│   └── technical · operational · execution · quality · approver
+├── quality_escape and incentive_alignment
+├── hypotheses[]
+│   └── mechanism · supporting/contradicting evidence
+│       missing evidence · discriminating test · evidence state
+├── root_problem
+├── intervention and locked measurement contract
+└── investigation termination state
+```
+
+The three operating comparisons are explicit:
+
+| Contract | Question |
 |---|---|
-| Next.js on Vercel | Presents the six-stage diagnostic workbench and calls the agent API |
-| FastAPI | Validates requests and exposes diagnosis, approval, and evaluation endpoints |
-| ADK | Runs the six-stage proof contract in one hosted model call; the full sequential-agent mode remains available |
-| Gemini | Synthesizes evidence, competes hypotheses, falsifies explanations, and produces typed decisions |
-| Connectors | Load source-labelled evidence without exposing credentials to prompts |
-| Pydantic schemas | Enforce Root Problem Record and intervention contracts |
-| Firestore | Persists diagnostic runs, approvals, proof records, and learned rules |
-| Render | Hosts the Dockerized Python API and ADK workflow |
+| Standard | What should have happened? |
+| Evidence | What actually happened? |
+| Verification | How will correctness be proven? |
 
-## Structured agent contract
+## State machine and stopping rules
 
-The model is not allowed to return an unstructured recommendation. The hosted ADK agent applies all six proof gates and returns a Pydantic-validated `DiagnosticDecision` containing a `RootProblemRecord`, an `InterventionPlan`, the next decision gate, and a plain-language summary. Compact mode uses one model call for demo reliability; sequential mode retains the six specialized agents for deeper evaluation. `/v1/model` publishes the exact JSON schemas used by the application, and the Vercel interface renders the returned fields rather than replacing them with generated prose.
+Pre-action termination states:
 
-## Proof gate
+| State | Meaning | Allowed transition |
+|---|---|---|
+| `confirmed` | A supported, controllable cause passed the proof gate | Request human approval |
+| `insufficient_evidence` | Important evidence is absent | Gather a named missing observation |
+| `conflicting_evidence` | Credible hypotheses cannot be separated | Run the cheapest discriminating test |
 
-```mermaid
-flowchart TD
-    A["Observed signal"] --> B{"Signal valid?"}
-    B -- "No" --> C["Repair data or gather evidence"]
-    B -- "Yes" --> D["Competing hypotheses"]
-    D --> E["Falsification review"]
-    E --> F{"Cause supported?"}
-    F -- "No" --> C
-    F -- "Yes" --> G["Bounded intervention"]
-    G --> H["Human approval"]
-    H --> I["Measure predicted outcome"]
-    I --> J{"Prediction matched?"}
-    J -- "No" --> D
-    J -- "Yes" --> K["Verified operating rule"]
-```
+After intervention, `intervention_validated` is allowed only when the predicted
+metric moves in the predicted direction and guardrails pass.
 
-## Data boundaries
+The Python service independently enforces:
 
-- Demo mode loads only `data/incident-pl0047.json`.
-- Live connector secrets are read from runtime environment variables.
-- Source rows remain outside persistent ADK instructions unless explicitly selected as evidence.
-- Every evidence-backed conclusion carries source IDs and reliability labels.
-- Firestore writes use a least-privilege service-account credential stored only in Render's secret environment.
+- at least two independent evidence sources;
+- three to five materially different hypotheses;
+- at least one supported hypothesis;
+- a supported Root Problem Record;
+- a human-approval requirement before action;
+- maximum four investigation rounds, twenty tool calls, and five hypotheses.
 
-## Failure handling
+Gemini may recommend a transition, but it cannot bypass this gate.
 
-- Gemini capacity errors are returned as retryable API responses rather than fabricated diagnoses.
-- Missing or malformed final JSON fails closed.
-- Intervention approval requires explicit scope acknowledgement.
-- Approval records include idempotency keys.
-- Evaluation metrics and stop conditions are locked before intervention execution.
+## Operating-system diagnosis
+
+ProofLoop looks beyond software symptoms across seven modern business factors:
+
+| Domain | Examples |
+|---|---|
+| People | Skills, capacity, training, communication |
+| Process | Workflow, handoffs, SOPs, approvals |
+| Technology | Software, APIs, infrastructure, automation |
+| Inputs | Data, traffic, requirements, customer mix |
+| Environment | Market, regulation, competition, operating conditions |
+| Measurement | Instrumentation, definitions, reporting quality |
+| Incentives | KPIs, speed/quality tradeoffs, performance pressure |
+
+Ownership is separated into technical owner, operational owner, executor,
+quality owner, and decision approver. This lets the system detect missing
+accountability, responsibility without authority, and unowned quality controls.
+
+## Closure and organizational memory
+
+The intervention contract is locked before approval: scope, reversibility,
+primary metric, success threshold, observation window, guardrails, and stop
+condition. Evaluation writes the outcome plus a standardization record:
+
+`Incident → Cause → Action → Outcome → Updated standard → Monitoring rule`
+
+Firestore collections:
+
+- `diagnostic_runs`: evidence, investigation state, hypotheses, and decision;
+- `interventions`: scoped human authorization and idempotency record;
+- `proof_records`: measured outcome, learned rule, updated control, and recurrence monitor.
+
+## Safety and failure boundaries
+
+- The initial signal is never called the root problem.
+- Unsupported standards, owners, incentives, or causal links are marked unknown.
+- Evidence-state labels replace arbitrary confidence percentages.
+- Gemini capacity errors return retryable `503` responses; the system does not fabricate a diagnosis.
+- Invalid structured output fails closed.
+- Consequential actions require human approval.
+- Credentials remain in runtime secrets and never enter prompts or repository state.
+
+## Hackathon scope
+
+The architecture understands broader organizational causes, but the demo proves
+one end-to-end revenue incident using synthetic Google Ads-, Looker-, release-,
+quality-, and customer-voice-shaped evidence. The judge-facing proof is the full
+loop: diagnose the actual process failure, approve a bounded rollback, verify the
+metric recovery, update the release standard, and persist the learned rule.
