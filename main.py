@@ -148,7 +148,7 @@ async def health() -> dict[str, str]:
 
     return {
         "status": "ok",
-        "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.6-flash"),
+        "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite"),
         "mode": data_mode,
         "persistence": persistence_mode,
         "execution_mode": EXECUTION_MODE,
@@ -161,7 +161,7 @@ async def structured_model() -> dict[str, Any]:
     return {
         "model_version": MODEL_VERSION,
         "agent_framework": "Google ADK",
-        "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.6-flash"),
+        "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite"),
         "execution_mode": EXECUTION_MODE,
         "stages": AGENT_STAGES,
         "root_problem_schema": RootProblemRecord.model_json_schema(),

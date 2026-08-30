@@ -10,7 +10,7 @@ Agent API: https://proofloop-agent.onrender.com
 
 - Python 3.12
 - Next.js 16 and Vercel
-- Gemini 3.6 Flash (configurable to newer Gemini models)
+- Gemini 3.5 Flash-Lite (configurable to newer Gemini models)
 - Google Agent Development Kit (ADK)
 - FastAPI
 - Render Docker web service
@@ -62,7 +62,7 @@ Add a Gemini API key to `.env`. Never commit that file.
 ```env
 GOOGLE_API_KEY=your-private-key
 GOOGLE_GENAI_USE_VERTEXAI=false
-PROOFLOOP_MODEL=gemini-3.6-flash
+PROOFLOOP_MODEL=gemini-3.5-flash-lite
 PROOFLOOP_EXECUTION_MODE=compact
 PROOFLOOP_DEMO_MODE=true
 PROOFLOOP_DATA_MODE=demo
