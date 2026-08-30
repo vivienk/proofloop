@@ -23,28 +23,33 @@ from proofloop.schemas import DiagnosticDecision, EvidenceState, RootProblemReco
 
 
 APP_NAME = "proofloop"
-MODEL_VERSION = "proofloop-investigation-loop-v3"
+MODEL_VERSION = "proofloop-investigation-graph-v4"
 DEFAULT_ALLOWED_ORIGINS = (
     "http://localhost:3000,https://proofloop-flywheel.vercel.app"
 )
 AGENT_STAGES = [
-    "define_5w1h",
-    "map_process",
-    "locate_failing_step",
-    "check_standard",
-    "identify_gap",
-    "five_whys",
-    "system_factor_analysis",
-    "ownership_incentive_quality",
-    "hypothesis_falsification",
+    "problem_definition_gate",
+    "map_process_standard_gap",
+    "split_bounded_units",
+    "run_red_green_unit_loops",
+    "deterministic_merge",
     "root_problem_definition",
+    "root_cause_evidence_gate",
+    "action_risk_gate",
     "intervention_planning",
 ]
-DECISION_LOOP = AGENT_STAGES + ["human_approval", "verify", "standardize", "monitor"]
+DECISION_LOOP = AGENT_STAGES + [
+    "human_approval",
+    "outcome_loop",
+    "standardize",
+    "learning_edge",
+    "monitor",
+]
 INVESTIGATION_LIMITS = {
     "max_rounds": 4,
     "max_tool_calls": 20,
     "max_hypotheses": 5,
+    "max_unit_attempts": 4,
     "minimum_independent_sources": 2,
 }
 session_service = InMemorySessionService()
@@ -144,41 +149,121 @@ async def _load_record(collection: str, document_id: str) -> dict[str, Any] | No
 def _enforce_proof_gate(
     decision: DiagnosticDecision,
 ) -> tuple[DiagnosticDecision, bool]:
-    """Recompute action eligibility deterministically outside the LLM."""
+    """Recompute node, evidence, and risk gates outside the LLM."""
 
     root_problem = decision.root_problem
+    known_evidence_ids = {item.evidence_id for item in root_problem.evidence}
+    problem_gate = decision.problem_gate
+    problem_failures: list[str] = []
+    if not problem_gate.metric.strip():
+        problem_failures.append("metric")
+    if not problem_gate.timeframe.strip():
+        problem_failures.append("timeframe")
+    if not problem_gate.affected_population.strip():
+        problem_failures.append("affected_population")
+    if not problem_gate.source_evidence_ids:
+        problem_failures.append("source")
+    elif not set(problem_gate.source_evidence_ids).issubset(known_evidence_ids):
+        problem_failures.append("source_reference")
+    if not problem_gate.anomaly_reproducible:
+        problem_failures.append("anomaly_reproducible")
+    computed_delta = problem_gate.observed_value - problem_gate.expected_value
+    if abs(computed_delta - problem_gate.delta) > 0.0001:
+        problem_failures.append("delta")
+    problem_gate.failed_checks = problem_failures
+    problem_gate.status = "red" if problem_failures else "green"
+
+    required_domains = {"product", "customer", "growth", "operations"}
+    returned_domains = {unit.domain for unit in decision.investigation_graph.units}
+    failed_unit_ids: list[str] = []
+    for unit in decision.investigation_graph.units:
+        unit_is_green = all(
+            [
+                bool(unit.id.strip()),
+                bool(unit.hypothesis.strip()),
+                bool(unit.finding.strip()),
+                bool(unit.evidence_ids),
+                set(unit.evidence_ids).issubset(known_evidence_ids),
+                unit.verdict in {"supported", "rejected"},
+                not unit.blocking_missing_evidence,
+                unit.attempts <= INVESTIGATION_LIMITS["max_unit_attempts"],
+            ]
+        )
+        unit.status = "green" if unit_is_green else "red"
+        if not unit_is_green:
+            failed_unit_ids.append(unit.id)
+            if not unit.correction_request.strip():
+                unit.correction_request = (
+                    "Collect only the blocking evidence required for this unit."
+                )
+        else:
+            unit.correction_request = ""
+
+    if returned_domains != required_domains:
+        failed_unit_ids.append("splitter_domain_coverage")
+
     independent_sources = len({item.source for item in root_problem.evidence})
     hypothesis_count = len(root_problem.hypotheses)
     alternatives_competed = hypothesis_count >= 3
     supported_hypothesis = any(
         hypothesis.status == "supported" for hypothesis in root_problem.hypotheses
     )
-    proof_gate_passed = all(
+    evidence_gate_passed = all(
         [
+            problem_gate.status == "green",
+            not failed_unit_ids,
             root_problem.status == EvidenceState.SUPPORTED,
             independent_sources >= INVESTIGATION_LIMITS["minimum_independent_sources"],
             alternatives_competed,
             supported_hypothesis,
-            decision.investigation.termination_state == "confirmed",
-            decision.intervention.approval_required,
         ]
     )
+
+    root_cause_gate = decision.investigation_graph.root_cause_gate
+    root_cause_gate.status = "green" if evidence_gate_passed else "red"
+    root_cause_gate.failed_unit_ids = failed_unit_ids
+    root_cause_gate.independent_source_count = independent_sources
+    root_cause_gate.reason = (
+        "All required investigation units reached valid conclusions and the "
+        "supported cause has independent evidence."
+        if evidence_gate_passed
+        else "Only the failed RED units may be corrected before synthesis resumes."
+    )
+
+    risk_gate = decision.risk_gate
+    if risk_gate.risk_level == "high" or risk_gate.blast_radius == "hard_to_reverse":
+        safe_execution_modes = {"human_approval"}
+    elif risk_gate.risk_level == "medium" or risk_gate.blast_radius == "wide":
+        safe_execution_modes = {"guarded", "human_approval"}
+    else:
+        safe_execution_modes = {"auto_test", "guarded", "human_approval"}
+    risk_gate_passed = risk_gate.execution_mode in safe_execution_modes
+    if risk_gate.execution_mode == "human_approval":
+        risk_gate_passed = risk_gate_passed and decision.intervention.approval_required
+    risk_gate.status = "green" if risk_gate_passed else "red"
+    risk_gate.reason = (
+        "Execution control matches blast radius and reversibility."
+        if risk_gate_passed
+        else "Execution control is weaker than the assessed action risk."
+    )
+
+    proof_gate_passed = evidence_gate_passed and risk_gate_passed
 
     decision.investigation.independent_source_count = independent_sources
     decision.investigation.hypotheses_considered = hypothesis_count
     decision.investigation.proof_gate_passed = proof_gate_passed
     if proof_gate_passed:
+        decision.investigation.termination_state = "confirmed"
         decision.next_stage = "request_approval"
         decision.investigation.stopping_reason = (
-            "Supported cause, competing hypotheses, and at least two independent "
-            "evidence sources satisfy the action gate."
+            "Problem, node, evidence, and risk gates are GREEN."
         )
     else:
         decision.next_stage = "gather_evidence"
-        if decision.investigation.termination_state == "confirmed":
+        if decision.investigation.termination_state != "conflicting_evidence":
             decision.investigation.termination_state = "insufficient_evidence"
         decision.investigation.stopping_reason = (
-            "The deterministic proof gate requires more or clearer evidence before action."
+            "One or more deterministic RED gates must be corrected before action."
         )
     return decision, proof_gate_passed
 
@@ -381,6 +466,12 @@ async def evaluate_intervention(run_id: str) -> dict[str, Any]:
             "new_control": "Required mobile Safari regression test before rollout",
             "monitoring_rule": "Alert when segment conversion deviates more than 10% from baseline",
             "recurrence_status": "monitoring",
+        },
+        "learning_edge": {
+            "lesson": "Platform-specific conversion failures immediately after a release should be investigated as release escapes before acquisition degradation.",
+            "derived_constraint": "When a browser-specific revenue anomaly begins within two hours of a release, inspect release and compatibility evidence first.",
+            "applies_when": "A revenue-critical funnel drops in one browser or platform shortly after deployment.",
+            "future_splitter_effect": "Prioritize product and operations units before expanding growth investigation.",
         },
     }
     await _persist("proof_records", run_id, payload)

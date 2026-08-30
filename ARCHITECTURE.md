@@ -1,30 +1,45 @@
-# ProofLoop decision architecture
+# ProofLoop investigation-graph architecture
 
 ProofLoop is an autonomous business investigation engine. It does not stop at
 finding an anomaly or producing advice. It maintains a falsifiable investigation
-until the evidence supports an action, then verifies the result and turns the
-outcome into an operating standard.
+until programmatic checks turn every required unit GREEN, then passes a separate
+risk gate, verifies the result, and turns the outcome into a constraint that
+changes future investigations.
+
+## Four structural primitives
+
+| Primitive | Responsibility |
+|---|---|
+| Graph | Determines how the investigation moves and which units depend on others |
+| Loop | Makes one bounded unit correct through produce → check → correct → repeat |
+| Gate | Programmatically determines whether the graph can continue |
+| Learning edge | Converts a verified outcome into a constraint for the next splitter |
+
+`GREEN` does not mean a hypothesis is true. It means the unit reached a valid
+conclusion. A hypothesis can be `rejected` and its unit can be GREEN. `RED`
+means the unit itself is incomplete, inconclusive, or missing blocking evidence.
 
 ## Canonical decision loop
 
 ```mermaid
 flowchart TD
-    A["Business signal"] --> B["Define with 5W1H"]
-    B --> C["Process · step · standard · gap"]
-    C --> D["5 Whys · system factors · ownership"]
-    D --> E["Compete and falsify hypotheses"]
-    E --> F{"Proof gate"}
-    F -- "Insufficient or conflicting" --> G["Gather discriminating evidence"]
-    G --> D
-    F -- "Confirmed" --> H["Approve bounded intervention"]
-    H --> I["Verify predicted outcome"]
-    I -- "Failed" --> D
-    I -- "Matched" --> J["Standardize · monitor · remember"]
+    A["Business signal"] --> B["Problem-definition loop"]
+    B --> C["Process · standard · gap"]
+    C --> D["Splitter"]
+    D --> E["Bounded investigation units"]
+    E --> F{"Deterministic merge and evidence gate"}
+    F -- "RED" --> G["Correct only failed units"]
+    G --> E
+    F -- "GREEN" --> H{"Separate action-risk gate"}
+    H --> I["Execute or request approval"]
+    I --> J{"Outcome check"}
+    J -- "RED" --> G
+    J -- "GREEN" --> K["Learning constraint → future splitter"]
 ```
 
 The diagnostic backbone is:
 
-`Problem → Process → Step → Standard → Gap → 5 Whys → System Factors → Ownership → Corrective Action → Verification → Standardization → Monitoring`
+`Problem → Process → Step → Standard → Gap → Split → Unit loops → Merge → Evidence gate → Risk gate → Action → Outcome loop → Learning edge`
 
 ## Runtime architecture
 
@@ -35,10 +50,11 @@ flowchart TD
     C --> D["Gemini 3.5 Flash-Lite"]
     B --> E["Evidence tools and connectors"]
     E --> C
-    D --> F["Typed Investigation Record"]
-    F --> G["Deterministic Python proof gate"]
-    G --> H["Human approval and verification"]
-    H --> I["Firestore proof ledger"]
+    D --> F["Typed investigation graph"]
+    F --> G["Deterministic Python node and evidence gates"]
+    G --> H["Separate action-risk gate"]
+    H --> I["Human approval and verification"]
+    I --> J["Firestore graph, proof, and learning constraints"]
 ```
 
 The hosted path uses one schema-constrained ADK orchestrator call. This follows
@@ -54,6 +70,9 @@ Every run stores:
 ```text
 Incident
 ├── 5W1H frame and business impact
+├── problem_gate
+│   └── metric · expected · observed · delta · segment
+│       timeframe · source · reproducible · RED/GREEN
 ├── process_gap
 │   ├── process
 │   ├── failing_step
@@ -67,10 +86,16 @@ Incident
 ├── ownership
 │   └── technical · operational · execution · quality · approver
 ├── quality_escape and incentive_alignment
+├── investigation_graph
+│   ├── units[product, customer, growth, operations]
+│   │   └── produce · check · status · attempts · evidence
+│   └── edges[dependency, correction, learning]
 ├── hypotheses[]
 │   └── mechanism · supporting/contradicting evidence
 │       missing evidence · discriminating test · evidence state
 ├── root_problem
+├── root_cause_evidence_gate
+├── action_risk_gate
 ├── intervention and locked measurement contract
 └── investigation termination state
 ```
@@ -102,6 +127,12 @@ The Python service independently enforces:
 - three to five materially different hypotheses;
 - at least one supported hypothesis;
 - a supported Root Problem Record;
+- a reproducible problem definition with a computable delta;
+- exactly one product, customer, growth, and operations investigation unit;
+- each GREEN unit has a supported or rejected verdict, cited evidence, no
+  blocking missing evidence, and remains within its retry budget;
+- only RED units are returned for correction;
+- action controls match blast radius and reversibility;
 - a human-approval requirement before action;
 - maximum four investigation rounds, twenty tool calls, and five hypotheses.
 
@@ -131,7 +162,11 @@ The intervention contract is locked before approval: scope, reversibility,
 primary metric, success threshold, observation window, guardrails, and stop
 condition. Evaluation writes the outcome plus a standardization record:
 
-`Incident → Cause → Action → Outcome → Updated standard → Monitoring rule`
+`Incident → Cause → Action → Outcome → Derived constraint → Future splitter`
+
+The correction edge repairs only the current failed unit. The learning edge is
+different: it stores `lesson`, `derived_constraint`, `applies_when`, and
+`future_splitter_effect`, then changes which units future incidents prioritize.
 
 Firestore collections:
 

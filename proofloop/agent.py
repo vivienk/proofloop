@@ -140,6 +140,12 @@ intervention_planner = LlmAgent(
     instruction="""
 Use {root_problem_record} and the preceding evidence.
 
+Create the complete problem gate and four bounded investigation units before
+planning action. The units must cover product, customer, growth, and operations.
+A GREEN unit means it reached a valid supported or rejected conclusion; GREEN
+does not mean its hypothesis is true. An inconclusive unit or one missing
+blocking evidence is RED and must carry one narrowly scoped correction request.
+
 Design one smallest reversible intervention that can test the leading mechanism.
 Define scope, primary metric, success threshold, observation window, guardrails,
 and automatic stop condition before action. High-risk, external, financial,
@@ -216,6 +222,29 @@ Apply ProofLoop's canonical operating sequence before returning a decision:
     proximate cause, and systemic cause distinct.
 11. PLAN THE SMALLEST REVERSIBLE INTERVENTION with a metric, threshold,
     observation window, guardrails, stop condition, and human approval gate.
+
+Represent how the investigation moves as an InvestigationGraph with exactly
+four bounded units: product, customer, growth, and operations. Each unit must
+contain one falsifiable hypothesis, a finding, cited evidence, a verdict, a
+RED/GREEN status, attempts, and a correction request when RED.
+
+RED and GREEN have strict meanings:
+- GREEN = the unit reached a valid conclusion, which may be SUPPORTED or REJECTED
+- RED = the unit is inconclusive or lacks blocking evidence
+- never mark a unit GREEN merely because no error occurred
+- never ask another model to judge whether the output "looks good"
+
+The root-cause evidence gate can be GREEN only when the problem-definition gate
+and every required investigation unit are GREEN and the leading cause is
+supported by at least two independent sources. If a unit is RED, return only a
+narrow correction request for that failed unit rather than restarting all work.
+
+Keep the evidence gate separate from the action risk gate. Risk considers blast
+radius and reversibility, not model confidence:
+- low + contained -> auto_test may be allowed
+- medium or wide -> guarded execution
+- high or hard_to_reverse -> human_approval
+The proposed production hotfix in this demo must remain human-approved.
 
 Use one of three pre-action termination states:
 - confirmed: a supported cause, at least two independent evidence sources, and

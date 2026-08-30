@@ -99,6 +99,54 @@ class InvestigationState(BaseModel):
     stopping_reason: str
 
 
+class ProblemDefinitionGate(BaseModel):
+    metric: str
+    expected_value: float
+    observed_value: float
+    delta: float
+    timeframe: str
+    affected_population: str
+    source_evidence_ids: list[str]
+    anomaly_reproducible: bool
+    status: Literal["red", "green"]
+    failed_checks: list[str]
+
+
+class InvestigationUnit(BaseModel):
+    id: str
+    domain: Literal["product", "customer", "growth", "operations"]
+    hypothesis: str
+    finding: str
+    verdict: Literal["supported", "rejected", "inconclusive"]
+    evidence_ids: list[str]
+    contradicting_evidence_ids: list[str]
+    blocking_missing_evidence: list[str]
+    attempts: int = Field(ge=1, le=4)
+    status: Literal["red", "green"]
+    correction_request: str
+
+
+class RootCauseGate(BaseModel):
+    status: Literal["red", "green"]
+    failed_unit_ids: list[str]
+    independent_source_count: int = Field(ge=0)
+    reason: str
+
+
+class InvestigationGraph(BaseModel):
+    units: list[InvestigationUnit] = Field(min_length=4, max_length=4)
+    root_cause_gate: RootCauseGate
+
+
+class RiskGate(BaseModel):
+    risk_level: Literal["low", "medium", "high"]
+    blast_radius: Literal["contained", "wide", "hard_to_reverse"]
+    consequence_if_wrong: str
+    execution_mode: Literal["auto_test", "guarded", "human_approval"]
+    status: Literal["red", "green"]
+    reason: str
+
+
 class RootProblemRecord(BaseModel):
     incident_id: str
     signal: str
@@ -140,8 +188,11 @@ class InterventionPlan(BaseModel):
 
 
 class DiagnosticDecision(BaseModel):
+    problem_gate: ProblemDefinitionGate
+    investigation_graph: InvestigationGraph
     root_problem: RootProblemRecord
     intervention: InterventionPlan
     investigation: InvestigationState
+    risk_gate: RiskGate
     next_stage: Literal["gather_evidence", "request_approval", "monitor"]
     plain_language_summary: str

@@ -14,11 +14,11 @@ Founders have dashboards that report what happened and AI tools that produce gen
 
 ## Solution
 
-ProofLoop investigates a business anomaly before recommending action. It maps the failing process and step, compares the expected standard with actual execution, runs evidence-backed 5 Whys and seven-factor systems analysis, checks ownership and quality control, falsifies competing hypotheses, proposes a reversible intervention, verifies the result, and converts the outcome into a stronger operating standard.
+ProofLoop investigates a business anomaly as a graph of bounded RED/GREEN loops. It maps the failing process and standard, splits the investigation into product, customer, growth, and operations units, retries only incomplete branches, deterministically merges valid supported and rejected conclusions, passes a separate action-risk gate, verifies the intervention, and converts the outcome into a constraint for future investigations.
 
 For reliable live judging, one hosted ADK orchestrator applies the complete
-decision contract in one schema-constrained Gemini call. A deterministic Python
-state controller independently enforces the proof gate. The repository retains
+graph contract in one schema-constrained Gemini call. A deterministic Python
+state controller independently enforces problem, node, evidence, and risk gates. The repository retains
 the sequential six-agent workflow as an evaluation mode.
 
 ## Demonstrated workflow
@@ -52,7 +52,7 @@ Run the diagnosis. Show signal validation, the adaptive 5W1H frame, evidence sou
 
 ### 1:20–2:05 — What is actually wrong
 
-Show the Investigation Record. Emphasize `Process → Step → Standard → Gap`, the seven system factors, ownership, the external quality escape, and competing hypotheses. Point out that Python—not Gemini—decides whether the proof gate passed, and the cause is still only `supported` before intervention.
+Show the live investigation graph. Emphasize that the Growth hypothesis is rejected but GREEN because the unit reached a valid conclusion. Explain that RED means the unit—not the hypothesis—is incomplete, and only that branch retries. Point out that Python—not Gemini—decides whether the evidence and risk gates passed.
 
 ### 2:05–2:45 — Guarded action
 
@@ -60,7 +60,7 @@ Show the targeted rollback, precommitted success metric, observation window, gua
 
 ### 2:45–3:20 — Verification and learning
 
-Evaluate the intervention: 41.2% control progression versus 48.1% rollback progression, a 16.8% relative lift with guardrails passing. Show the verified rule, updated release checklist, new Safari control, and recurrence monitor entering memory.
+Evaluate the intervention: 41.2% control progression versus 48.1% rollback progression, a 16.8% relative lift with guardrails passing. Show the derived constraint flowing through the learning edge to reprioritize the next investigation splitter.
 
 ### 3:20–4:00 — Google Cloud proof and architecture
 

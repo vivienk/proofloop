@@ -16,18 +16,24 @@ Agent API: https://proofloop-agent.onrender.com
 - Render Docker web service
 - Firestore
 
-## Canonical decision loop
+## Canonical investigation graph
 
 ```text
-Problem → Process → Step → Standard → Gap → 5 Whys
-→ System Factors → Ownership → Hypotheses → Intervention
-→ Verification → Standardization → Monitoring
+Problem gate → Process / standard / gap → Splitter
+→ Product / Customer / Growth / Operations unit loops
+→ Deterministic merge → Evidence gate → Risk gate
+→ Intervention → Outcome loop → Learning edge
 ```
 
 The system compares `Standard vs Evidence vs Verification` and investigates
 seven possible cause domains: people, process, technology, inputs, environment,
 measurement, and incentives. It also separates technical, operational,
 execution, quality, and approval ownership.
+
+Every bounded unit follows `produce → check → correct → repeat`. A GREEN unit
+may support or reject its hypothesis; RED means the investigation unit itself
+is incomplete. Correction edges retry only RED units. A separate learning edge
+turns verified outcomes into constraints that reprioritize future splitters.
 
 ## Hosted investigation workflow
 
@@ -36,13 +42,16 @@ schema-constrained ADK model call to reduce latency and exposure to transient
 provider-capacity errors. The full sequential six-agent implementation remains available with
 `PROOFLOOP_EXECUTION_MODE=sequential`.
 
-1. Define and validate the incident with adaptive 5W1H.
+1. Define and validate the incident with a programmatic problem gate.
 2. Map the process, failing step, expected standard, actual execution, and gap.
 3. Run evidence-backed 5 Whys and seven-factor systems analysis.
 4. Inspect ownership, authority, incentives, and the quality escape.
-5. Generate and falsify three to five competing causal mechanisms.
-6. Define the smallest consequential and controllable root problem.
-7. Lock a reversible intervention and verification contract.
+5. Split the investigation into product, customer, growth, and operations units.
+6. Run RED/GREEN checks and retry only failed units.
+7. Deterministically merge valid supported and rejected conclusions.
+8. Define the smallest consequential and controllable root problem.
+9. Pass a separate blast-radius and reversibility risk gate.
+10. Lock a reversible intervention and verification contract.
 
 Python recomputes the proof gate outside Gemini. The agent advances only when a
 supported cause has at least two independent sources, credible alternatives were
@@ -170,7 +179,7 @@ The web app binds the returned `DiagnosticDecision` directly into the evidence l
 - A cause remains a hypothesis until the intervention produces its predicted result.
 - Unsupported standards, owners, incentives, and causal links are marked unknown.
 - Evidence-state labels replace ungrounded numerical confidence scores.
-- Gemini cannot bypass the deterministic Python proof gate.
+- Gemini cannot bypass deterministic Python problem, node, evidence, or risk gates.
 - Material claims cite evidence IDs.
 - External, financial, destructive, or irreversible actions require human approval.
 - Interventions define success metrics, guardrails, observation windows, and stop conditions before execution.

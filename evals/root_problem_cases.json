@@ -7,6 +7,11 @@
       "required_status": "supported",
       "required_evidence_ids": ["ads-142", "looker-391", "release-184", "voice-027"],
       "required_termination_state": "confirmed",
+      "required_problem_gate": "green",
+      "required_root_cause_gate": "green",
+      "required_unit_domains": ["product", "customer", "growth", "operations"],
+      "required_rejected_unit": "growth",
+      "required_risk_execution": "human_approval",
       "required_process": "checkout",
       "required_quality_escape": "external",
       "must_include": ["mobile Safari", "pricing", "disabled", "standard", "quality"],
@@ -18,6 +23,7 @@
       "required_status": "observed",
       "expected_next_stage": "gather_evidence",
       "required_termination_state": "insufficient_evidence",
+      "required_problem_gate": "red",
       "must_include": ["instrumentation", "metric definition"],
       "must_not_include": ["customer demand declined"]
     },
@@ -27,6 +33,7 @@
       "required_status": "plausible",
       "expected_next_stage": "gather_evidence",
       "required_termination_state": "insufficient_evidence",
+      "required_problem_gate": "red",
       "must_include": ["sample", "uncertainty"],
       "must_not_include": ["root cause verified"]
     },
@@ -35,6 +42,8 @@
       "input_summary": "A support queue slowed after a routing change, but staffing, demand, and SLA definitions also changed in the same week.",
       "expected_next_stage": "gather_evidence",
       "required_termination_state": "conflicting_evidence",
+      "required_root_cause_gate": "red",
+      "required_red_unit": true,
       "must_include": ["process", "standard", "ownership", "discriminating test"],
       "must_not_include": ["intervention_validated", "employee caused"]
     }

@@ -45,7 +45,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Stage = "detect" | "investigate" | "define" | "act" | "measure" | "learn";
@@ -131,6 +130,20 @@ type InterventionPlan = {
   stop_condition: string;
 };
 
+type InvestigationUnit = {
+  id: string;
+  domain: "product" | "customer" | "growth" | "operations";
+  hypothesis: string;
+  finding: string;
+  verdict: "supported" | "rejected" | "inconclusive";
+  evidence_ids: string[];
+  contradicting_evidence_ids: string[];
+  blocking_missing_evidence: string[];
+  attempts: number;
+  status: "red" | "green";
+  correction_request: string;
+};
+
 type DiagnosticEnvelope = {
   run_id: string;
   incident_id: string;
@@ -145,6 +158,27 @@ type DiagnosticEnvelope = {
     minimum_independent_sources: number;
   };
   decision: {
+    problem_gate: {
+      metric: string;
+      expected_value: number;
+      observed_value: number;
+      delta: number;
+      timeframe: string;
+      affected_population: string;
+      source_evidence_ids: string[];
+      anomaly_reproducible: boolean;
+      status: "red" | "green";
+      failed_checks: string[];
+    };
+    investigation_graph: {
+      units: InvestigationUnit[];
+      root_cause_gate: {
+        status: "red" | "green";
+        failed_unit_ids: string[];
+        independent_source_count: number;
+        reason: string;
+      };
+    };
     root_problem: RootProblemRecord;
     intervention: InterventionPlan;
     investigation: {
@@ -153,6 +187,14 @@ type DiagnosticEnvelope = {
       hypotheses_considered: number;
       proof_gate_passed: boolean;
       stopping_reason: string;
+    };
+    risk_gate: {
+      risk_level: "low" | "medium" | "high";
+      blast_radius: "contained" | "wide" | "hard_to_reverse";
+      consequence_if_wrong: string;
+      execution_mode: "auto_test" | "guarded" | "human_approval";
+      status: "red" | "green";
+      reason: string;
     };
     next_stage: "gather_evidence" | "request_approval" | "monitor";
     plain_language_summary: string;
@@ -176,6 +218,12 @@ type EvaluationResult = {
     new_control: string;
     monitoring_rule: string;
     recurrence_status: string;
+  };
+  learning_edge?: {
+    lesson: string;
+    derived_constraint: string;
+    applies_when: string;
+    future_splitter_effect: string;
   };
 };
 
@@ -259,14 +307,71 @@ const demoHypotheses: HypothesisCard[] = [
   },
 ];
 
+const demoGraphUnits: InvestigationUnit[] = [
+  {
+    id: "growth-acquisition-mix",
+    domain: "growth",
+    hypothesis: "Lower-quality paid traffic caused the conversion decline.",
+    finding: "Traffic mix and engagement remained within baseline.",
+    verdict: "rejected",
+    evidence_ids: ["ads-142"],
+    contradicting_evidence_ids: ["ads-142"],
+    blocking_missing_evidence: [],
+    attempts: 1,
+    status: "green",
+    correction_request: "",
+  },
+  {
+    id: "product-pricing-selector",
+    domain: "product",
+    hypothesis: "The pricing release broke mobile Safari progression.",
+    finding: "The first break occurs at the changed pricing selector.",
+    verdict: "supported",
+    evidence_ids: ["looker-391", "release-184"],
+    contradicting_evidence_ids: [],
+    blocking_missing_evidence: [],
+    attempts: 2,
+    status: "green",
+    correction_request: "",
+  },
+  {
+    id: "customer-disabled-cta",
+    domain: "customer",
+    hypothesis: "Customers cannot activate Continue after plan selection.",
+    finding: "Five Safari reports describe the same disabled CTA.",
+    verdict: "supported",
+    evidence_ids: ["voice-027"],
+    contradicting_evidence_ids: [],
+    blocking_missing_evidence: [],
+    attempts: 1,
+    status: "green",
+    correction_request: "",
+  },
+  {
+    id: "operations-release-control",
+    domain: "operations",
+    hypothesis: "Release validation omitted the affected browser.",
+    finding: "The release checklist contains no mobile Safari gate.",
+    verdict: "supported",
+    evidence_ids: ["qa-052", "standard-011"],
+    contradicting_evidence_ids: [],
+    blocking_missing_evidence: [],
+    attempts: 1,
+    status: "green",
+    correction_request: "",
+  },
+];
+
 const runSteps = [
-  "Defining the incident with 5W1H",
-  "Mapping the process and failing step",
-  "Comparing standard versus actual execution",
-  "Testing seven system-factor domains",
-  "Checking ownership, incentives, and quality",
-  "Falsifying competing explanations",
-  "Locking the intervention and proof gate",
+  "Checking the problem definition",
+  "Mapping process, standard, and gap",
+  "Splitting bounded investigation units",
+  "Running the product unit",
+  "Running the customer unit",
+  "Running the growth unit",
+  "Running the operations unit",
+  "Merging GREEN conclusions",
+  "Checking evidence and action risk",
 ];
 
 const API_URL = (
@@ -333,6 +438,9 @@ export default function Home() {
 
   const rootProblem = diagnostic?.decision.root_problem;
   const intervention = diagnostic?.decision.intervention;
+  const graphUnits = diagnostic?.decision.investigation_graph?.units ?? demoGraphUnits;
+  const rootCauseGate = diagnostic?.decision.investigation_graph?.root_cause_gate;
+  const riskGate = diagnostic?.decision.risk_gate;
   const displayEvidence = useMemo(() => {
     if (!rootProblem) return demoEvidence;
     return rootProblem.evidence.map((item) => ({
@@ -581,13 +689,22 @@ export default function Home() {
             <div className="agent-run-copy">
               <div className="gemini-orb"><Sparkles /></div>
               <div>
-                <strong>Gemini is investigating the business system</strong>
+                <strong>ProofLoop is running bounded investigation loops</strong>
                 <span>{runSteps[Math.min(runIndex, runSteps.length - 1)]}</span>
               </div>
             </div>
-            <div className="run-progress">
-              <span>{Math.round((runIndex / runSteps.length) * 100)}%</span>
-              <Progress value={(runIndex / runSteps.length) * 100} />
+            <div className="live-run-graph" aria-label="Live investigation graph">
+              <span className={runIndex > 0 ? "green" : "active"}>Define</span>
+              <ChevronRight />
+              <span className={runIndex > 1 ? "green" : runIndex === 1 ? "active" : "pending"}>Split</span>
+              <ChevronRight />
+              <div className="live-unit-stack">
+                {["Product", "Customer", "Growth", "Operations"].map((unit, index) => (
+                  <span key={unit} className={runIndex > index + 2 ? "green" : runIndex === index + 2 ? "active" : "pending"}>{unit}</span>
+                ))}
+              </div>
+              <ChevronRight />
+              <span className={runIndex >= runSteps.length - 1 ? "active" : "pending"}>Gate</span>
             </div>
           </section>
         )}
@@ -641,12 +758,38 @@ export default function Home() {
                 <div><span className="section-number">02 / Investigate</span><h2>Evidence before explanation</h2></div>
                 <Badge variant="outline" className="status-badge"><Database /> {displayEvidence.length} evidence records</Badge>
               </div>
-              <Tabs defaultValue="evidence" className="evidence-tabs">
+              <Tabs defaultValue="graph" className="evidence-tabs">
                 <TabsList variant="line">
+                  <TabsTrigger value="graph">Investigation graph</TabsTrigger>
                   <TabsTrigger value="evidence">Evidence ledger</TabsTrigger>
                   <TabsTrigger value="hypotheses">Competing hypotheses</TabsTrigger>
                   <TabsTrigger value="system">Business system</TabsTrigger>
                 </TabsList>
+                <TabsContent value="graph" className="investigation-graph">
+                  <div className={`graph-gate problem ${diagnostic?.decision.problem_gate?.status ?? "green"}`}>
+                    <span>Problem-definition gate</span>
+                    <strong>{humanize(diagnostic?.decision.problem_gate?.status ?? "green")}</strong>
+                    <p>{diagnostic?.decision.problem_gate ? `${diagnostic.decision.problem_gate.metric}: ${diagnostic.decision.problem_gate.expected_value} → ${diagnostic.decision.problem_gate.observed_value}` : "Metric, baseline, segment, timeframe, and reproducibility checks passed."}</p>
+                  </div>
+                  <div className="graph-connector"><ChevronRight /></div>
+                  <div className="graph-splitter"><GitBranch /><span>Splitter</span><strong>4 bounded units</strong></div>
+                  <div className="graph-unit-grid">
+                    {graphUnits.map((unit) => (
+                      <article key={unit.id} className={`graph-unit ${unit.status}`}>
+                        <div><span>{humanize(unit.domain)}</span><Badge variant="outline">{humanize(unit.status)}</Badge></div>
+                        <strong>{unit.hypothesis}</strong>
+                        <p>{unit.status === "red" ? unit.correction_request : unit.finding}</p>
+                        <footer><span>{humanize(unit.verdict)}</span><span>Attempt {unit.attempts}</span><span>{unit.evidence_ids.length} evidence</span></footer>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="graph-merge">Deterministic merge</div>
+                  <div className={`graph-gate root ${rootCauseGate?.status ?? "green"}`}>
+                    <span>Root-cause evidence gate</span>
+                    <strong>{humanize(rootCauseGate?.status ?? "green")}</strong>
+                    <p>{rootCauseGate?.reason ?? "All four units reached valid conclusions; rejected hypotheses count as GREEN."}</p>
+                  </div>
+                </TabsContent>
                 <TabsContent value="evidence" className="evidence-ledger">
                   {displayEvidence.map((item) => (
                     <article key={item.title}>
@@ -760,7 +903,7 @@ export default function Home() {
             <section className="stage-panel">
               <div className="panel-heading">
                 <div><span className="section-number">04 / Act</span><h2>Run the smallest test that could prove us wrong</h2></div>
-                <Badge variant="outline" className="status-badge"><LockKeyhole /> Human approval required</Badge>
+                <Badge variant="outline" className={`status-badge ${riskGate?.status === "red" ? "alert" : ""}`}><LockKeyhole /> {riskGate ? `${humanize(riskGate.risk_level)} risk · ${humanize(riskGate.execution_mode)}` : "Human approval required"}</Badge>
               </div>
               <div className="intervention-layout">
                 <article className="intervention-card">
@@ -772,6 +915,8 @@ export default function Home() {
                     <div><span>Success threshold</span><strong>{intervention?.success_threshold ?? "≥ 12% relative recovery"}</strong></div>
                     <div><span>Observation window</span><strong>{intervention?.observation_window ?? "24 hours or 1,200 sessions"}</strong></div>
                     <div><span>Automatic stop</span><strong>{intervention?.stop_condition ?? "Revenue/session declines > 5%"}</strong></div>
+                    <div><span>Blast radius</span><strong>{riskGate ? humanize(riskGate.blast_radius) : "Contained to mobile Safari"}</strong></div>
+                    <div><span>Consequence if wrong</span><strong>{riskGate?.consequence_if_wrong ?? "Checkout conversion could decline further."}</strong></div>
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -850,6 +995,11 @@ export default function Home() {
                 <article><span>New control</span><strong>{evaluation?.standardization?.new_control ?? "Add Safari checks to the release readiness gate."}</strong></article>
                 <article><span>Monitor recurrence</span><strong>{evaluation?.standardization?.monitoring_rule ?? "Watch pricing progression by browser after every release."}</strong></article>
               </div>
+              <article className="learning-edge-card">
+                <div><GitBranch /><span>Learning edge · modifies the next splitter</span></div>
+                <strong>{evaluation?.learning_edge?.derived_constraint ?? "When a browser-specific revenue anomaly begins soon after a release, inspect release and compatibility evidence first."}</strong>
+                <p>{evaluation?.learning_edge?.future_splitter_effect ?? "Future investigations prioritize product and operations units before expanding acquisition analysis."}</p>
+              </article>
               <button type="button" className="ledger-link"><span><GitBranch /> Open the complete proof ledger</span><ExternalLink /></button>
             </section>
           )}
