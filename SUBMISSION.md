@@ -24,6 +24,7 @@ The demo begins with paid clicks increasing 22.4% while purchase conversion fall
 
 - Gemini 3.5 Flash-Lite
 - Google ADK for Python
+- Next.js 16 on Vercel
 - Cloud Run
 - Firestore
 - FastAPI and Pydantic

@@ -3,3 +3,7 @@ __pycache__
 .env
 .venv
 eval-results
+node_modules
+.next
+.vercel
+npm-debug.log

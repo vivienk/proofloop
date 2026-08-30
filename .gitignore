@@ -1,7 +1,12 @@
 .env
+.env.local
+.env.*.local
 .venv/
 __pycache__/
 *.py[cod]
 *.log
 .DS_Store
 eval-results/
+.next/
+node_modules/
+.vercel/

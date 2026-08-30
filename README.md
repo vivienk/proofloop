@@ -2,9 +2,12 @@
 
 ProofLoop is a self-improving business diagnostic agent for founders and small teams. It turns an observed business anomaly into an evidence-backed root-problem record, proposes a bounded intervention, verifies the outcome, and stores a reusable operating rule.
 
+Frontend: deployed on Vercel from the repository root.
+
 ## Hackathon stack
 
 - Python 3.12
+- Next.js 16 and Vercel
 - Gemini 3.5 Flash-Lite (configurable to newer Gemini models)
 - Google Agent Development Kit (ADK)
 - FastAPI
@@ -23,6 +26,22 @@ ProofLoop is a self-improving business diagnostic agent for founders and small t
 The demo incident uses synthetic, privacy-safe Google Ads-, Looker-, release-log-, and customer-voice-shaped evidence. Live connector scaffolding is isolated from model prompts and reads credentials only from environment variables.
 
 ## Run locally
+
+### Frontend
+
+```bash
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the interface uses its privacy-safe demonstration flow. To connect the agent, add the Cloud Run service URL to `.env.local`:
+
+```env
+NEXT_PUBLIC_PROOFLOOP_API_URL=https://your-cloud-run-service.run.app
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### Python agent
 
 ```bash
 python3.12 -m venv .venv
@@ -88,10 +107,21 @@ gcloud run deploy proofloop-agent \
   --min-instances 0 \
   --max-instances 1 \
   --set-secrets GOOGLE_API_KEY=proofloop-gemini-key:latest \
-  --set-env-vars PROOFLOOP_MODEL=gemini-3.5-flash-lite,PROOFLOOP_DEMO_MODE=false
+  --set-env-vars PROOFLOOP_MODEL=gemini-3.5-flash-lite,PROOFLOOP_DEMO_MODE=false,ALLOWED_ORIGINS=https://YOUR_VERCEL_DOMAIN
 ```
 
 Cloud Run uses its service identity for Firestore. The Gemini API key stays in Secret Manager and is never exposed to the frontend.
+
+## Vercel deployment
+
+The repository root is a standard Next.js project. Import `vivienk/proofloop` into Vercel with the Root Directory left blank and Framework Preset set to Next.js. Add these environment variables in Vercel:
+
+```env
+NEXT_PUBLIC_SITE_URL=https://YOUR_VERCEL_DOMAIN
+NEXT_PUBLIC_PROOFLOOP_API_URL=https://your-cloud-run-service.run.app
+```
+
+Every push to `main` triggers a new Vercel production build. The Python backend continues to deploy separately from the same repository using its root `Dockerfile`.
 
 ## API
 

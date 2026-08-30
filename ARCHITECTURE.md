@@ -2,20 +2,23 @@
 
 ```mermaid
 flowchart TD
-    A["Google Ads + Looker-shaped evidence"] --> B["Python evidence connectors"]
-    B --> C["Google ADK diagnostic workflow"]
-    C --> D["Gemini 3.5 Flash-Lite"]
-    D --> E["Typed Root Problem Record"]
-    E --> F["Human approval gate"]
-    F --> G["Intervention evaluation"]
-    G --> H["Firestore proof ledger"]
-    C -. "Hosted on" .-> I["Cloud Run"]
+    A["Vercel Next.js interface"] --> B["Cloud Run FastAPI"]
+    C["Google Ads + Looker-shaped evidence"] --> D["Python evidence connectors"]
+    D --> E["Google ADK diagnostic workflow"]
+    B --> E
+    E --> F["Gemini 3.5 Flash-Lite"]
+    F --> G["Typed Root Problem Record"]
+    G --> H["Human approval gate"]
+    H --> I["Intervention evaluation"]
+    I --> J["Firestore proof ledger"]
+    E -. "Hosted on" .-> B
 ```
 
 ## Responsibilities
 
 | Layer | Responsibility |
 |---|---|
+| Next.js on Vercel | Presents the six-stage diagnostic workbench and calls the Cloud Run API |
 | FastAPI | Validates requests and exposes diagnosis, approval, and evaluation endpoints |
 | ADK | Sequences six specialized diagnostic agents and preserves session state |
 | Gemini | Synthesizes evidence, competes hypotheses, falsifies explanations, and produces typed decisions |
