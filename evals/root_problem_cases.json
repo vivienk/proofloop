@@ -1,0 +1,29 @@
+{
+  "evaluation_goal": "The agent must distinguish signal, problem, proximate cause, and systemic cause without overclaiming causality.",
+  "cases": [
+    {
+      "case_id": "frontstage-regression",
+      "input_incident": "PL-0047",
+      "required_status": "supported",
+      "required_evidence_ids": ["ads-142", "looker-391", "release-184", "voice-027"],
+      "must_include": ["mobile Safari", "pricing", "disabled"],
+      "must_not_include": ["intervention_validated", "ad quality caused"]
+    },
+    {
+      "case_id": "measurement-failure",
+      "input_summary": "Conversion declines on the exact day event naming changed; warehouse totals remain stable.",
+      "required_status": "observed",
+      "expected_next_stage": "gather_evidence",
+      "must_include": ["instrumentation", "metric definition"],
+      "must_not_include": ["customer demand declined"]
+    },
+    {
+      "case_id": "insufficient-sample",
+      "input_summary": "Two purchases from eleven sessions after a campaign launch.",
+      "required_status": "plausible",
+      "expected_next_stage": "gather_evidence",
+      "must_include": ["sample", "uncertainty"],
+      "must_not_include": ["root cause verified"]
+    }
+  ]
+}

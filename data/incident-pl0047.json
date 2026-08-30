@@ -1,0 +1,57 @@
+{
+  "incident_id": "PL-0047",
+  "mode": "synthetic_demo",
+  "business": {
+    "name": "Northstar Studio",
+    "type": "solo digital-service business",
+    "goal": "grow qualified purchases without increasing wasted acquisition spend"
+  },
+  "signal": {
+    "metric": "purchase_conversion",
+    "baseline": 0.112,
+    "actual": 0.085,
+    "relative_change": -0.241,
+    "window": "2026-08-22/2026-08-29",
+    "estimated_monthly_revenue_at_risk": 4800
+  },
+  "google_ads": {
+    "evidence_id": "ads-142",
+    "clicks": 12840,
+    "click_change": 0.224,
+    "ctr_within_baseline": true,
+    "cpc_within_baseline": true,
+    "search_term_mix_changed": false,
+    "engaged_session_rate_within_baseline": true
+  },
+  "looker": {
+    "evidence_id": "looker-391",
+    "affected_segment": "mobile Safari",
+    "pricing_to_payment_change": -0.38,
+    "landing_to_pricing_change": -0.01,
+    "desktop_change": 0.004,
+    "first_breakpoint": "pricing selector"
+  },
+  "release_log": {
+    "evidence_id": "release-184",
+    "release": "v1.8.4",
+    "minutes_before_decline": 34,
+    "changed_components": ["pricing selector state", "mobile breakpoints"]
+  },
+  "customer_voice": {
+    "evidence_id": "voice-027",
+    "reports": 5,
+    "mobile_safari_reports": 5,
+    "paid_search_arrivals": 4,
+    "common_description": "The Continue button stays grey after choosing a plan."
+  },
+  "data_quality": {
+    "tracking_continuity": "passed",
+    "sample_sufficiency": "passed",
+    "seasonality_check": "passed",
+    "metric_definition": "unchanged"
+  },
+  "data_contract": {
+    "join_keys": ["date", "campaign_id", "device", "landing_page"],
+    "prohibition": "Do not infer causality from correlation alone."
+  }
+}
