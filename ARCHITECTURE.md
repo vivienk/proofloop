@@ -227,6 +227,57 @@ or external-environment units when the business context requires them.
 The diagnostic record stores the context version used for the decision. Later
 context changes never silently rewrite the evidence basis of an earlier proof.
 
+## Confirmed v5 product experience
+
+The public app opens on the ready Northstar Studio overview. Primary navigation
+is `Overview · Business Forensics · Investigations · Proof Ledger`. A persistent
+right-side agent panel accompanies the continuous journey:
+
+`Evidence → History → Business model → Economic engine → Operations → Baselines → Readiness → Investigation`
+
+The overview shows a chart-first historical timeline with a table toggle.
+Selecting an event exposes its evidence, before/after metrics, Gemini-ranked
+investigation leads, and a Create investigation action. The term *lead* is
+deliberate: the diagnostic evidence gate must still validate a cause.
+
+Personal onboarding combines evidence and chat. Real uploads and one public
+HTTPS page may supply context; the adaptive agent asks one highest-information
+question for remaining gaps. Material inferences stay pending until the founder
+confirms or rejects them. For conflicting sources, Gemini provisionally selects
+the most reliable claim, displays both claims and their provenance, and requires
+founder approval.
+
+The initial investigation splitter runs product, customer, growth, and
+operations units. Context may add zero to three finance, capacity, partner, or
+external-environment units. Frameworks modify questions and unit design but can
+never replace deterministic ProofLoop evidence and action gates.
+
+## v5 runtime and security contract
+
+```mermaid
+flowchart TD
+    A["Next.js · Vercel"] --> B["Firebase Google sign-in"]
+    A --> C["Browser-only original files"]
+    A --> D["FastAPI · Render"]
+    D --> E["Bounded file and HTTPS extraction"]
+    E --> F["ADK Business Context agent"]
+    F --> G["Gemini structured reconstruction"]
+    G --> H["Python readiness gate"]
+    H --> I["Firestore typed context"]
+    I --> J["Diagnostic router and v4 graph"]
+```
+
+- The Northstar demo context is public and requires no account.
+- Personal context routes verify Firebase ID tokens server-side.
+- Supported uploads are PDF, CSV, XLSX, TXT, Markdown, DOCX, and PPTX, limited
+  to 10 MB each and 45,000 extracted characters per source.
+- Upload bytes are discarded after extraction. Original files are retained only
+  in the user's browser using IndexedDB.
+- URL ingestion accepts final public HTTPS HTML or text pages, performs DNS and
+  IP checks, rejects redirects and non-public address classes, and limits size.
+- Firestore adds `business_contexts`, `context_messages`, and
+  `evidence_sources` to the diagnostic and proof collections.
+
 ## Four structural primitives
 
 | Primitive | Responsibility |
@@ -308,7 +359,8 @@ Incident
 │   └── technical · operational · execution · quality · approver
 ├── quality_escape and incentive_alignment
 ├── investigation_graph
-│   ├── units[product, customer, growth, operations]
+│   ├── core units[product, customer, growth, operations]
+│   ├── optional units[finance, capacity, partner, external]
 │   │   └── produce · check · status · attempts · evidence
 │   └── edges[dependency, correction, learning]
 ├── hypotheses[]
@@ -349,7 +401,8 @@ The Python service independently enforces:
 - at least one supported hypothesis;
 - a supported Root Problem Record;
 - a reproducible problem definition with a computable delta;
-- exactly one product, customer, growth, and operations investigation unit;
+- exactly one product, customer, growth, and operations core unit, with no more
+  than three unique context-triggered optional units;
 - each GREEN unit has a supported or rejected verdict, cited evidence, no
   blocking missing evidence, and remains within its retry budget;
 - only RED units are returned for correction;

@@ -1,0 +1,79 @@
+{
+  "workspace_id": "northstar-demo",
+  "business_name": "Northstar Studio",
+  "value_proposition": "Helps independent designers automate invoices and client follow-up.",
+  "primary_customer": "Freelance designers and small creative studios",
+  "current_objective": "Increase profitable monthly recurring revenue without increasing founder support load",
+  "classification": {
+    "primary_model": "micro_saas",
+    "secondary_models": ["creator_economy"],
+    "revenue_models": ["subscription", "digital_templates"],
+    "stage": "growing",
+    "evidence_ids": ["site-001", "stripe-001", "posthog-001"],
+    "founder_confirmed": true
+  },
+  "economic_engine": [
+    {"order": 1, "name": "Reach", "description": "SEO, newsletter, and paid-search discovery", "metric_ids": ["traffic"]},
+    {"order": 2, "name": "Signup", "description": "Visitors create a workspace", "metric_ids": ["signup_cvr"]},
+    {"order": 3, "name": "Activation", "description": "A user sends the first automated invoice", "metric_ids": ["activation"]},
+    {"order": 4, "name": "Paid", "description": "Activated users begin a subscription", "metric_ids": ["paid_cvr"]},
+    {"order": 5, "name": "Retention", "description": "Subscribers continue using client workflows", "metric_ids": ["monthly_churn"]}
+  ],
+  "operating_system": [
+    {"area": "acquisition", "systems": ["Google Ads", "Search Console", "ConvertKit"], "process_summary": "Paid search, SEO, and creator-led newsletter acquisition", "dependencies": ["Google", "ConvertKit"], "evidence_ids": ["ads-142", "site-001"]},
+    {"area": "product", "systems": ["PostHog", "GitHub", "Vercel"], "process_summary": "Founder-led releases with product analytics monitoring", "dependencies": ["Vercel", "OpenAI API"], "evidence_ids": ["posthog-001", "release-184"]},
+    {"area": "revenue", "systems": ["Stripe"], "process_summary": "Monthly self-serve subscriptions", "dependencies": ["Stripe"], "evidence_ids": ["stripe-001"]},
+    {"area": "customer", "systems": ["Gmail", "Intercom"], "process_summary": "Founder answers support and collects product feedback", "dependencies": ["Intercom"], "evidence_ids": ["voice-027"]},
+    {"area": "delivery", "systems": ["Vercel", "OpenAI API"], "process_summary": "Web application delivery and automated invoice workflows", "dependencies": ["Vercel", "OpenAI API"], "evidence_ids": ["release-184"]},
+    {"area": "operations", "systems": ["GitHub", "Linear", "Notion"], "process_summary": "Weekly planning, release, and quality-control workflow", "dependencies": [], "evidence_ids": ["qa-052", "standard-011"]}
+  ],
+  "external_dependencies": ["Google", "Stripe", "Vercel", "OpenAI API", "Intercom"],
+  "evidence_sources": [
+    {"source_id": "site-001", "name": "Northstar website", "domain": "business", "source_type": "website", "status": "processed", "provenance": "Public website and pricing pages", "coverage": "Current positioning and pricing", "freshness": "Checked today", "permission": "read_only"},
+    {"source_id": "stripe-001", "name": "Stripe", "domain": "revenue", "source_type": "integration", "status": "demo", "provenance": "Synthetic subscription ledger", "coverage": "12 months", "freshness": "Daily", "permission": "read_only"},
+    {"source_id": "posthog-001", "name": "PostHog", "domain": "product", "source_type": "integration", "status": "demo", "provenance": "Synthetic product funnel", "coverage": "180 days", "freshness": "Hourly", "permission": "read_only"},
+    {"source_id": "ads-142", "name": "Google Ads", "domain": "growth", "source_type": "integration", "status": "demo", "provenance": "Synthetic campaign metrics", "coverage": "90 days", "freshness": "Daily", "permission": "read_only"},
+    {"source_id": "voice-027", "name": "Customer voice", "domain": "customers", "source_type": "upload", "status": "processed", "provenance": "Support and interview excerpts", "coverage": "Six months", "freshness": "Weekly", "permission": "uploaded"},
+    {"source_id": "release-184", "name": "GitHub release history", "domain": "operations", "source_type": "integration", "status": "demo", "provenance": "Synthetic release and quality logs", "coverage": "12 months", "freshness": "Per release", "permission": "read_only"}
+  ],
+  "claims": [
+    {"claim_id": "claim-model", "domain": "business", "claim": "Northstar is primarily a subscription Micro-SaaS with creator-led acquisition.", "source_ids": ["site-001", "stripe-001"], "source_locator": "Pricing page and subscription ledger", "reliability": "high", "confirmation_status": "confirmed"},
+    {"claim_id": "claim-customer", "domain": "customers", "claim": "Freelance designers and small studios are the primary customer segment.", "source_ids": ["site-001", "voice-027"], "source_locator": "Homepage positioning and customer interviews", "reliability": "high", "confirmation_status": "confirmed"},
+    {"claim_id": "claim-standard", "domain": "product", "claim": "Activation above 60% is the current internal product standard.", "source_ids": ["posthog-001"], "source_locator": "Stable 90-day activation range", "reliability": "high", "confirmation_status": "confirmed"}
+  ],
+  "metrics": [
+    {"metric_id": "traffic", "label": "Weekly traffic", "unit": "visits", "current_value": 4200, "expected_low": 3600, "expected_high": 4400, "standard_type": "historical", "standard_basis": "Prior 90-day stable range", "evidence_strength": "high", "baseline_level": "A", "trend": "up", "volatility": "Moderate weekly variation", "seasonality": "No stable seasonal effect detected", "observations": [{"period": "May", "value": 3300}, {"period": "Jun", "value": 3550}, {"period": "Jul", "value": 3810}, {"period": "Aug", "value": 4200}], "source_ids": ["posthog-001", "ads-142"]},
+    {"metric_id": "signup_cvr", "label": "Signup conversion", "unit": "%", "current_value": 8.4, "expected_low": 7.8, "expected_high": 9.1, "standard_type": "historical", "standard_basis": "Prior 90-day stable range", "evidence_strength": "high", "baseline_level": "A", "trend": "flat", "volatility": "Low", "seasonality": "Insufficient evidence", "observations": [{"period": "May", "value": 8.1}, {"period": "Jun", "value": 8.5}, {"period": "Jul", "value": 8.3}, {"period": "Aug", "value": 8.4}], "source_ids": ["posthog-001"]},
+    {"metric_id": "activation", "label": "Activation", "unit": "%", "current_value": 61.2, "expected_low": 60, "expected_high": 66, "standard_type": "historical", "standard_basis": "90-day stable product range", "evidence_strength": "high", "baseline_level": "A", "trend": "flat", "volatility": "Low", "seasonality": "No meaningful pattern", "observations": [{"period": "May", "value": 63.1}, {"period": "Jun", "value": 62.4}, {"period": "Jul", "value": 61.8}, {"period": "Aug", "value": 61.2}], "source_ids": ["posthog-001"]},
+    {"metric_id": "paid_cvr", "label": "Paid conversion", "unit": "%", "current_value": 9.7, "expected_low": 9, "expected_high": 11, "standard_type": "historical", "standard_basis": "Prior stable subscription cohorts", "evidence_strength": "high", "baseline_level": "A", "trend": "down", "volatility": "Moderate after releases", "seasonality": "No reliable seasonal pattern", "observations": [{"period": "May", "value": 10.4}, {"period": "Jun", "value": 10.2}, {"period": "Jul", "value": 10.1}, {"period": "Aug", "value": 9.7}], "source_ids": ["stripe-001", "posthog-001"]},
+    {"metric_id": "monthly_churn", "label": "Monthly churn", "unit": "%", "current_value": 4.1, "expected_low": 3.4, "expected_high": 4.5, "standard_type": "historical", "standard_basis": "Six-month subscriber history", "evidence_strength": "medium", "baseline_level": "A", "trend": "flat", "volatility": "Moderate at small sample sizes", "seasonality": "Insufficient evidence", "observations": [{"period": "May", "value": 4.3}, {"period": "Jun", "value": 3.9}, {"period": "Jul", "value": 4.0}, {"period": "Aug", "value": 4.1}], "source_ids": ["stripe-001"]}
+  ],
+  "timeline_events": [
+    {"event_id": "evt-campaign", "date": "2026-06-21", "event_type": "campaign", "title": "High-intent search campaign launched", "description": "Paid traffic increased while engagement remained inside baseline.", "evidence_ids": ["ads-142"], "before_after": "Weekly traffic increased 19% over the next four weeks.", "ranked_investigation_leads": ["Paid traffic mix change", "Landing-page message alignment"]},
+    {"event_id": "evt-pricing", "date": "2026-07-10", "event_type": "pricing", "title": "Annual-plan pricing introduced", "description": "Pricing and packaging changed without a measurable checkout regression.", "evidence_ids": ["site-001", "stripe-001"], "before_after": "Average revenue per new account increased 7%.", "ranked_investigation_leads": ["Plan-mix change", "Annual-plan adoption"]},
+    {"event_id": "evt-release", "date": "2026-08-19", "event_type": "release", "title": "Checkout redesign v1.8.4", "description": "The pricing selector and mobile breakpoints changed.", "evidence_ids": ["release-184"], "before_after": "Mobile Safari pricing-to-payment progression declined 38%.", "ranked_investigation_leads": ["Mobile pricing-selector regression", "Cross-browser release-control gap"]},
+    {"event_id": "evt-external", "date": "2026-08-24", "event_type": "external", "title": "Back-to-school demand period", "description": "A possible demand shift was recorded but has not been shown to explain the segment-specific break.", "evidence_ids": ["ads-142"], "before_after": "Search volume increased while traffic quality remained stable.", "ranked_investigation_leads": ["Seasonal demand composition"]}
+  ],
+  "selected_frameworks": [
+    {"framework": "AARRR", "purpose": "Locate the revenue break across acquisition, activation, and paid conversion.", "trigger_evidence_ids": ["posthog-001", "stripe-001"], "excluded_alternatives": ["SCOR: no material supply chain", "OEE: no equipment constraint"]},
+    {"framework": "Lean Six Sigma / DMAIC", "purpose": "Compare release execution with the expected quality-control standard.", "trigger_evidence_ids": ["release-184"], "excluded_alternatives": ["Five Forces: the current gap is localized to internal execution"]}
+  ],
+  "readiness": {
+    "status": "green",
+    "score": 92,
+    "ready_scopes": ["growth", "product", "customer", "operations"],
+    "blocked_scopes": ["full cash-flow forecasting"],
+    "areas": [
+      {"area": "identity", "status": "green", "reason": "Customer, value, model, and objective are supported.", "missing_evidence": []},
+      {"area": "economic_engine", "status": "green", "reason": "The subscription journey is mapped end to end.", "missing_evidence": []},
+      {"area": "operating_system", "status": "green", "reason": "Revenue-critical systems and dependencies are known.", "missing_evidence": []},
+      {"area": "metrics", "status": "green", "reason": "Primary funnel metrics have governed sources and baselines.", "missing_evidence": []},
+      {"area": "history", "status": "green", "reason": "Change points and business events are aligned on one timeline.", "missing_evidence": []},
+      {"area": "dependencies", "status": "green", "reason": "Major platform dependencies are mapped.", "missing_evidence": []}
+    ],
+    "next_best_question": "Which cash and expense source should ProofLoop use before diagnosing runway or cash-flow questions?",
+    "reason": "Context is sufficient to distinguish normal growth and product behavior from a revenue-funnel anomaly."
+  },
+  "conflicts": [],
+  "limitations": ["The prepared workspace uses privacy-safe synthetic integration data.", "Cash-flow scope remains blocked because no accounting evidence is connected."]
+}

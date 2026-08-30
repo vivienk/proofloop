@@ -114,7 +114,16 @@ class ProblemDefinitionGate(BaseModel):
 
 class InvestigationUnit(BaseModel):
     id: str
-    domain: Literal["product", "customer", "growth", "operations"]
+    domain: Literal[
+        "product",
+        "customer",
+        "growth",
+        "operations",
+        "finance",
+        "capacity",
+        "partner",
+        "external",
+    ]
     hypothesis: str
     finding: str
     verdict: Literal["supported", "rejected", "inconclusive"]
@@ -134,7 +143,7 @@ class RootCauseGate(BaseModel):
 
 
 class InvestigationGraph(BaseModel):
-    units: list[InvestigationUnit] = Field(min_length=4, max_length=4)
+    units: list[InvestigationUnit] = Field(min_length=4, max_length=7)
     root_cause_gate: RootCauseGate
 
 

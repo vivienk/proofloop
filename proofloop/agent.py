@@ -140,8 +140,10 @@ intervention_planner = LlmAgent(
     instruction="""
 Use {root_problem_record} and the preceding evidence.
 
-Create the complete problem gate and four bounded investigation units before
-planning action. The units must cover product, customer, growth, and operations.
+Create the complete problem gate and four core bounded investigation units
+before planning action. The units must cover product, customer, growth, and
+operations; add no more than three finance, capacity, partner, or external units
+only when the supplied Business Context Graph materially requires them.
 A GREEN unit means it reached a valid supported or rejected conclusion; GREEN
 does not mean its hypothesis is true. An inconclusive unit or one missing
 blocking evidence is RED and must carry one narrowly scoped correction request.
@@ -223,8 +225,10 @@ Apply ProofLoop's canonical operating sequence before returning a decision:
 11. PLAN THE SMALLEST REVERSIBLE INTERVENTION with a metric, threshold,
     observation window, guardrails, stop condition, and human approval gate.
 
-Represent how the investigation moves as an InvestigationGraph with exactly
-four bounded units: product, customer, growth, and operations. Each unit must
+Represent how the investigation moves as an InvestigationGraph with four core
+bounded units: product, customer, growth, and operations. Add no more than three
+finance, capacity, partner, or external units only when the supplied Business
+Context Graph provides a material trigger. Each unit must
 contain one falsifiable hypothesis, a finding, cited evidence, a verdict, a
 RED/GREEN status, attempts, and a correction request when RED.
 

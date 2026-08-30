@@ -2,6 +2,11 @@
 
 ProofLoop is an autonomous business investigation engine for founders and small teams. It locates the failing process and standard—not just the visible symptom—then proposes a bounded intervention, verifies the outcome, updates the operating standard, and monitors what was learned.
 
+Before investigating, the v5 Business Context Engine reconstructs what the
+business is, how value becomes revenue, what normal behavior looks like, and
+where causal evidence lives. The founder may connect demo integrations, upload
+real documents, import a public website, or answer adaptive chat questions.
+
 Frontend: https://proofloop-flywheel.vercel.app
 
 Agent API: https://proofloop-agent.onrender.com
@@ -15,6 +20,25 @@ Agent API: https://proofloop-agent.onrender.com
 - FastAPI
 - Render Docker web service
 - Firestore
+- Firebase Authentication for personal workspaces
+
+## Business Forensics journey
+
+```text
+Evidence → History → Business model → Economic engine
+→ Operations → Baselines → Scope-specific readiness
+→ Diagnostic router → Investigation graph
+```
+
+The public Northstar workspace is ready without login. Personal workspaces use
+Google sign-in and support PDF, CSV, XLSX, TXT, Markdown, DOCX, and PPTX uploads
+up to 10 MB. Source files are retained in the founder's browser with IndexedDB;
+the backend discards upload bytes after bounded extraction and stores only typed
+claims, provenance, confirmations, and context in Firestore.
+
+The evidence library is organized into Business, Revenue, Product, Growth,
+Customers, and Operations. Integration cards clearly distinguish `Demo`,
+`Connected`, and `Coming soon` states.
 
 ## Canonical investigation graph
 
@@ -74,6 +98,10 @@ Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the inter
 ```env
 NEXT_PUBLIC_PROOFLOOP_API_URL=https://proofloop-agent.onrender.com
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_FIREBASE_API_KEY=your-web-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-web-app-id
 ```
 
 ### Python agent
@@ -157,7 +185,16 @@ The repository root is a standard Next.js project. Import `vivienk/proofloop` in
 ```env
 NEXT_PUBLIC_SITE_URL=https://proofloop-flywheel.vercel.app
 NEXT_PUBLIC_PROOFLOOP_API_URL=https://proofloop-agent.onrender.com
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-firebase-web-app-id
 ```
+
+In Firebase Console, enable **Authentication → Sign-in method → Google** and
+add `proofloop-flywheel.vercel.app` to Authentication's authorized domains.
+Firebase's public web configuration is safe in `NEXT_PUBLIC_*`; the service
+account JSON remains private on Render.
 
 Every push to `main` triggers a new Vercel production build and a Render backend deployment. The frontend and agent remain separately addressable while sharing the same repository.
 
@@ -167,6 +204,10 @@ Every push to `main` triggers a new Vercel production build and a Render backend
 |---|---|---|
 | `GET` | `/health` | Runtime, model, and mode check |
 | `GET` | `/v1/model` | Publish the decision loop, limits, and typed JSON schemas |
+| `GET` | `/v1/business-context/demo` | Return the public Northstar Business Context Graph |
+| `GET` | `/v1/business-contexts/{workspace_id}` | Load an authenticated personal context |
+| `POST` | `/v1/business-contexts/reconstruct` | Extract evidence and run the Gemini/ADK context reconstruction |
+| `POST` | `/v1/business-contexts/{workspace_id}/confirm` | Confirm or reject material claims and conflicts |
 | `POST` | `/v1/diagnose` | Run the complete ADK diagnostic proof gate |
 | `POST` | `/v1/interventions/{run_id}/approve` | Record scoped human authorization |
 | `POST` | `/v1/interventions/{run_id}/evaluate` | Evaluate the locked intervention contract |
@@ -184,5 +225,9 @@ The web app binds the returned `DiagnosticDecision` directly into the evidence l
 - External, financial, destructive, or irreversible actions require human approval.
 - Interventions define success metrics, guardrails, observation windows, and stop conditions before execution.
 - Credentials never enter model prompts or repository state.
+- Personal context endpoints require a verified Firebase ID token.
+- Public URL imports accept only final public HTTPS pages and block private, loopback, link-local, reserved, and oversized responses.
+- Uploaded source bytes are discarded after extraction; original-file retention is browser-local.
+- Correlations are displayed as Gemini-ranked investigation leads, never verified causes.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the system design and [SUBMISSION.md](SUBMISSION.md) for the Devpost draft and demo sequence.

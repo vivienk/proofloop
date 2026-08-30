@@ -14,7 +14,13 @@ Founders have dashboards that report what happened and AI tools that produce gen
 
 ## Solution
 
-ProofLoop investigates a business anomaly as a graph of bounded RED/GREEN loops. It maps the failing process and standard, splits the investigation into product, customer, growth, and operations units, retries only incomplete branches, deterministically merges valid supported and rejected conclusions, passes a separate action-risk gate, verifies the intervention, and converts the outcome into a constraint for future investigations.
+ProofLoop first reconstructs the business from evidence: its hybrid model,
+economic engine, operating system, standards, baselines, dependencies, and
+historical causal timeline. A scope-specific Business Context Gate determines
+whether ProofLoop can distinguish normal behavior from an anomaly. It then
+investigates that anomaly as a graph of bounded RED/GREEN loops, passes a
+separate action-risk gate, verifies the intervention, and converts the outcome
+into a constraint for future investigations.
 
 For reliable live judging, one hosted ADK orchestrator applies the complete
 graph contract in one schema-constrained Gemini call. A deterministic Python
@@ -32,6 +38,7 @@ The demo begins with paid clicks increasing 22.4% while purchase conversion fall
 - Next.js 16 on Vercel
 - Render Docker web service
 - Firestore
+- Firebase Authentication
 - FastAPI and Pydantic
 - Google Ads and Looker connector scaffolding
 
@@ -42,27 +49,35 @@ The demo begins with paid clicks increasing 22.4% while purchase conversion fall
 
 ## Four-minute demo sequence
 
-### 0:00–0:30 — Problem
+### 0:00–0:35 — Business Forensics
 
-Show the anomaly and explain why metric-to-recommendation shortcuts are dangerous.
+Open the reconstructed Northstar workspace. Show the hybrid model, economic
+engine, evidence sources, baseline basis, and chart/table historical timeline.
+Open a release marker to show ranked investigation leads, then explain that a
+correlation is not yet a cause.
 
-### 0:30–1:20 — Investigation
+### 0:35–1:00 — Evidence-first onboarding
+
+Open Add my business. Show the evidence library, upload and website paths, the
+adaptive assistant, founder confirmation, and the scope-specific readiness gate.
+
+### 1:00–1:45 — Investigation
 
 Run the diagnosis. Show signal validation, the adaptive 5W1H frame, evidence sources, alternatives, and falsification.
 
-### 1:20–2:05 — What is actually wrong
+### 1:45–2:25 — What is actually wrong
 
 Show the live investigation graph. Emphasize that the Growth hypothesis is rejected but GREEN because the unit reached a valid conclusion. Explain that RED means the unit—not the hypothesis—is incomplete, and only that branch retries. Point out that Python—not Gemini—decides whether the evidence and risk gates passed.
 
-### 2:05–2:45 — Guarded action
+### 2:25–3:00 — Guarded action
 
 Show the targeted rollback, precommitted success metric, observation window, guardrails, stop condition, and human approval.
 
-### 2:45–3:20 — Verification and learning
+### 3:00–3:30 — Verification and learning
 
 Evaluate the intervention: 41.2% control progression versus 48.1% rollback progression, a 16.8% relative lift with guardrails passing. Show the derived constraint flowing through the learning edge to reprioritize the next investigation splitter.
 
-### 3:20–4:00 — Google Cloud proof and architecture
+### 3:30–4:00 — Google Cloud proof and architecture
 
 Show the public Render API request and logs, then show the diagnostic and proof records written into Google Cloud Firestore. Explain that Firestore is the required Google Cloud infrastructure service. Close with: "ProofLoop does not merely recommend what to do. It determines what problem is worth solving, proves whether the intervention worked, and makes the business smarter the next time."
 

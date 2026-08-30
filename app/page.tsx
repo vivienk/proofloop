@@ -46,6 +46,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BusinessContextWorkspace } from "@/app/business-context-workspace";
+import { ProductNav, type ProductView } from "@/app/product-nav";
 
 type Stage = "detect" | "investigate" | "define" | "act" | "measure" | "learn";
 
@@ -132,7 +134,7 @@ type InterventionPlan = {
 
 type InvestigationUnit = {
   id: string;
-  domain: "product" | "customer" | "growth" | "operations";
+  domain: "product" | "customer" | "growth" | "operations" | "finance" | "capacity" | "partner" | "external";
   hypothesis: string;
   finding: string;
   verdict: "supported" | "rejected" | "inconclusive";
@@ -423,12 +425,15 @@ function humanize(value: string) {
 }
 
 export default function Home() {
+  const [productView, setProductView] = useState<ProductView>("overview");
   const [stage, setStage] = useState<Stage>("define");
   const [isRunning, setIsRunning] = useState(false);
   const [runIndex, setRunIndex] = useState(runSteps.length);
   const [actionStatus, setActionStatus] = useState<"ready" | "monitoring" | "verified">("ready");
   const [lastUpdated, setLastUpdated] = useState("2 min ago");
   const [runId, setRunId] = useState<string | null>(null);
+  const [contextWorkspaceId, setContextWorkspaceId] = useState<string | null>(null);
+  const [contextIdToken, setContextIdToken] = useState<string | null>(null);
   const [backendMode, setBackendMode] = useState<"demo" | "calling" | "live" | "fallback">("demo");
   const [incidentId, setIncidentId] = useState("PL-0047");
   const [concern, setConcern] = useState("Paid traffic is rising while purchases are falling.");
@@ -509,11 +514,15 @@ export default function Home() {
     try {
       const response = await fetch(`${API_URL}/v1/diagnose`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(contextIdToken ? { Authorization: `Bearer ${contextIdToken}` } : {}),
+        },
         body: JSON.stringify({
           incident_id: incidentId.trim(),
           concern: concern.trim(),
           user_id: "vivien",
+          workspace_id: contextWorkspaceId,
         }),
       });
       const payload = await response.json();
@@ -596,8 +605,50 @@ export default function Home() {
     }
   }
 
+  function openPreparedIncident() {
+    setIncidentId("PL-0047");
+    setConcern("Paid traffic is rising while purchases are falling.");
+    setContextWorkspaceId(null);
+    setContextIdToken(null);
+    setProductView("investigations");
+    setStage("detect");
+  }
+
+  function createContextInvestigation(seedConcern: string, contextLink?: { workspaceId: string; idToken: string }) {
+    setIncidentId(`PL-${new Date().toISOString().slice(5, 10).replace("-", "")}`);
+    setConcern(seedConcern);
+    setContextWorkspaceId(contextLink?.workspaceId ?? null);
+    setContextIdToken(contextLink?.idToken ?? null);
+    setProductView("investigations");
+    setStage("detect");
+  }
+
+  if (productView !== "investigations") {
+    return (
+      <>
+        <ProductNav
+          active={productView}
+          onNavigate={setProductView}
+          onAddBusiness={() => setProductView("forensics")}
+        />
+        <BusinessContextWorkspace
+          view={productView}
+          onNavigate={setProductView}
+          onOpenPreparedIncident={openPreparedIncident}
+          onCreateInvestigation={createContextInvestigation}
+        />
+      </>
+    );
+  }
+
   return (
-    <main className="proof-shell">
+    <>
+    <ProductNav
+      active="investigations"
+      onNavigate={setProductView}
+      onAddBusiness={() => setProductView("forensics")}
+    />
+    <main className="proof-shell investigation-product-shell">
       <aside className="side-rail">
         <div className="brand-lockup">
           <div className="brand-mark"><GitBranch /></div>
@@ -1022,5 +1073,6 @@ export default function Home() {
         </footer>
       </section>
     </main>
+    </>
   );
 }

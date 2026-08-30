@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 import json
 import os
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import File, Form, Header, HTTPException, UploadFile
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -19,11 +22,25 @@ from pydantic import BaseModel, Field
 
 from proofloop.agent import compact_agent, root_agent
 from proofloop.connectors import load_business_evidence
+from proofloop.context_agent import business_context_agent
+from proofloop.context_schemas import (
+    BusinessContextRecord,
+    ContextAgentDecision,
+    ContextConfirmationRequest,
+    ContextEvidenceSource,
+    ReadinessArea,
+)
+from proofloop.ingestion import (
+    EvidenceExtractionError,
+    extract_public_url,
+    extract_uploaded_file,
+)
 from proofloop.schemas import DiagnosticDecision, EvidenceState, RootProblemRecord
 
 
 APP_NAME = "proofloop"
 MODEL_VERSION = "proofloop-investigation-graph-v4"
+CONTEXT_MODEL_VERSION = "proofloop-business-context-v5"
 DEFAULT_ALLOWED_ORIGINS = (
     "http://localhost:3000,https://proofloop-flywheel.vercel.app"
 )
@@ -60,8 +77,15 @@ runner = Runner(
     agent=selected_agent,
     session_service=session_service,
 )
+context_runner = Runner(
+    app_name=APP_NAME,
+    agent=business_context_agent,
+    session_service=session_service,
+)
 runtime_diagnostic_runs: dict[str, dict[str, Any]] = {}
 runtime_interventions: dict[str, dict[str, Any]] = {}
+runtime_business_contexts: dict[str, dict[str, Any]] = {}
+DEMO_CONTEXT_PATH = Path(__file__).resolve().parent / "data" / "business-context-northstar.json"
 
 app = FastAPI(
     title="ProofLoop Agent API",
@@ -89,11 +113,72 @@ class DiagnoseRequest(BaseModel):
         max_length=1000,
     )
     user_id: str = "demo-founder"
+    workspace_id: str | None = Field(default=None, max_length=120)
 
 
 class ApprovalRequest(BaseModel):
     approved_by: str
     scope_acknowledged: bool
+
+
+def _service_account_info() -> dict[str, Any] | None:
+    encoded_credentials = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
+    if not encoded_credentials:
+        return None
+    try:
+        return json.loads(base64.b64decode(encoded_credentials).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            "GOOGLE_SERVICE_ACCOUNT_JSON_B64 is not a valid base64-encoded "
+            "Google service-account JSON document."
+        ) from exc
+
+
+def _firebase_app():
+    """Initialize Firebase Admin from the same private service identity as Firestore."""
+
+    import firebase_admin
+    from firebase_admin import credentials
+
+    try:
+        return firebase_admin.get_app()
+    except ValueError:
+        service_account_info = _service_account_info()
+        credential = (
+            credentials.Certificate(service_account_info)
+            if service_account_info
+            else credentials.ApplicationDefault()
+        )
+        return firebase_admin.initialize_app(
+            credential,
+            {"projectId": os.getenv("GOOGLE_CLOUD_PROJECT")},
+        )
+
+
+async def _require_personal_user(authorization: str | None) -> dict[str, Any]:
+    """Verify the Firebase ID token used for a personal business workspace."""
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Google sign-in is required for a personal business workspace.",
+        )
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="The sign-in token is missing.")
+    try:
+        from firebase_admin import auth as firebase_auth
+
+        return await asyncio.to_thread(
+            firebase_auth.verify_id_token,
+            token,
+            app=_firebase_app(),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=401,
+            detail="The Google sign-in session is invalid or expired.",
+        ) from exc
 
 
 def _firestore_client():
@@ -110,20 +195,11 @@ def _firestore_client():
     from google.oauth2 import service_account
 
     credentials = None
-    encoded_credentials = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
-    if encoded_credentials:
-        try:
-            service_account_info = json.loads(
-                base64.b64decode(encoded_credentials).decode("utf-8")
-            )
-            credentials = service_account.Credentials.from_service_account_info(
-                service_account_info
-            )
-        except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError(
-                "GOOGLE_SERVICE_ACCOUNT_JSON_B64 is not a valid base64-encoded "
-                "Google service-account JSON document."
-            ) from exc
+    service_account_info = _service_account_info()
+    if service_account_info:
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info
+        )
 
     return firestore.AsyncClient(
         project=os.getenv("GOOGLE_CLOUD_PROJECT"),
@@ -199,8 +275,10 @@ def _enforce_proof_gate(
         else:
             unit.correction_request = ""
 
-    if returned_domains != required_domains:
+    if not required_domains.issubset(returned_domains):
         failed_unit_ids.append("splitter_domain_coverage")
+    if len(returned_domains) != len(decision.investigation_graph.units):
+        failed_unit_ids.append("splitter_duplicate_domain")
 
     independent_sources = len({item.source for item in root_problem.evidence})
     hypothesis_count = len(root_problem.hypotheses)
@@ -268,6 +346,142 @@ def _enforce_proof_gate(
     return decision, proof_gate_passed
 
 
+def _demo_business_context() -> BusinessContextRecord:
+    return BusinessContextRecord.model_validate_json(
+        DEMO_CONTEXT_PATH.read_text(encoding="utf-8")
+    )
+
+
+def _infer_evidence_domain(name: str) -> str:
+    lowered = name.lower()
+    domain_keywords = {
+        "revenue": ["stripe", "shopify", "amazon", "gumroad", "quickbooks", "bank", "sales", "revenue", "invoice"],
+        "product": ["posthog", "ga4", "mixpanel", "amplitude", "app", "product", "usage", "analytics"],
+        "growth": ["ads", "campaign", "search console", "newsletter", "email", "seo", "traffic"],
+        "customers": ["salesforce", "hubspot", "support", "review", "survey", "nps", "interview", "customer"],
+        "operations": ["notion", "linear", "github", "project", "fulfillment", "inventory", "contractor", "workflow"],
+    }
+    for domain, keywords in domain_keywords.items():
+        if any(keyword in lowered for keyword in keywords):
+            return domain
+    return "business"
+
+
+def _enforce_context_readiness(context: BusinessContextRecord) -> BusinessContextRecord:
+    """Recompute the Business Context Gate from typed, inspectable facts."""
+
+    checks = {
+        "identity": all(
+            [
+                bool(context.business_name.strip()),
+                bool(context.value_proposition.strip()),
+                bool(context.primary_customer.strip()),
+                context.classification.founder_confirmed,
+                not any(
+                    claim.confirmation_status in {"pending", "conflicted"}
+                    for claim in context.claims
+                ),
+            ]
+        ),
+        "economic_engine": len(context.economic_engine) >= 3,
+        "operating_system": bool(context.operating_system),
+        "metrics": bool(context.metrics),
+        "history": any(metric.observations for metric in context.metrics)
+        or bool(context.timeline_events),
+        "dependencies": bool(context.external_dependencies)
+        or any(area.dependencies for area in context.operating_system),
+    }
+    existing = {area.area: area for area in context.readiness.areas}
+    missing_copy = {
+        "identity": "Business model, value proposition, or primary customer",
+        "economic_engine": "A complete customer-to-revenue value path",
+        "operating_system": "The systems and processes behind the value path",
+        "metrics": "At least one important metric, target, or measurement plan",
+        "history": "Historical observations or a declared measurement period",
+        "dependencies": "Major platforms, suppliers, or external dependencies",
+    }
+    for area_name, passed in checks.items():
+        area = existing.get(area_name)
+        if area is None:
+            area = ReadinessArea(
+                area=area_name,
+                status="green" if passed else "red",
+                reason="Deterministic Business Context Gate check.",
+                missing_evidence=[],
+            )
+            context.readiness.areas.append(area)
+        area.status = "green" if passed else "red"
+        if not passed:
+            area.missing_evidence = [missing_copy[area_name]]
+            area.reason = f"Missing: {missing_copy[area_name]}."
+
+    score = round(sum(1 for passed in checks.values() if passed) / len(checks) * 100)
+    required_for_any_diagnosis = all(
+        [checks["identity"], checks["economic_engine"], checks["metrics"]]
+    )
+    context.readiness.score = score
+    context.readiness.status = "green" if required_for_any_diagnosis else "red"
+    if not required_for_any_diagnosis and not context.readiness.next_best_question.strip():
+        first_missing = next(name for name, passed in checks.items() if not passed)
+        context.readiness.next_best_question = (
+            f"What can you share about {missing_copy[first_missing].lower()}?"
+        )
+    return context
+
+
+async def _run_context_reconstruction(
+    *,
+    workspace_id: str,
+    user_id: str,
+    prior_context: dict[str, Any] | None,
+    source_metadata: list[dict[str, Any]],
+    extracted_evidence: list[dict[str, Any]],
+    founder_message: str,
+    confirmed_claim_ids: list[str] | None = None,
+    rejected_claim_ids: list[str] | None = None,
+) -> ContextAgentDecision:
+    session_id = f"context-{workspace_id[:30]}-{uuid.uuid4().hex[:8]}"
+    await session_service.create_session(
+        app_name=APP_NAME,
+        user_id=user_id,
+        session_id=session_id,
+    )
+    payload = {
+        "workspace_id": workspace_id,
+        "prior_context": prior_context,
+        "source_metadata": source_metadata,
+        "extracted_evidence": extracted_evidence,
+        "founder_message": founder_message,
+        "confirmed_claim_ids": confirmed_claim_ids or [],
+        "rejected_claim_ids": rejected_claim_ids or [],
+        "instruction": "Reconstruct or update the Business Context Graph and ask one next-best question.",
+    }
+    message = types.Content(
+        role="user",
+        parts=[types.Part(text=json.dumps(payload))],
+    )
+    final_text = ""
+    async for event in context_runner.run_async(
+        user_id=user_id,
+        session_id=session_id,
+        new_message=message,
+    ):
+        if event.is_final_response() and event.content and event.content.parts:
+            final_text = event.content.parts[0].text or ""
+    if not final_text:
+        raise HTTPException(status_code=502, detail="Context agent produced no reconstruction.")
+    try:
+        decision = ContextAgentDecision.model_validate_json(final_text)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Context reconstruction did not satisfy the typed Business Context contract.",
+        ) from exc
+    decision.context.workspace_id = workspace_id
+    decision.context = _enforce_context_readiness(decision.context)
+    return decision
+
+
 @app.get("/")
 async def service_index() -> dict[str, Any]:
     return {
@@ -277,6 +491,10 @@ async def service_index() -> dict[str, Any]:
         "endpoints": [
             "/health",
             "/v1/model",
+            "/v1/business-context/demo",
+            "/v1/business-contexts/reconstruct",
+            "/v1/business-contexts/{workspace_id}",
+            "/v1/business-contexts/{workspace_id}/confirm",
             "/v1/diagnose",
             "/v1/interventions/{run_id}/approve",
             "/v1/interventions/{run_id}/evaluate",
@@ -307,6 +525,7 @@ async def health() -> dict[str, str]:
         "mode": data_mode,
         "persistence": persistence_mode,
         "execution_mode": EXECUTION_MODE,
+        "context_model_version": CONTEXT_MODEL_VERSION,
     }
 
 
@@ -323,20 +542,322 @@ async def structured_model() -> dict[str, Any]:
         "investigation_limits": INVESTIGATION_LIMITS,
         "root_problem_schema": RootProblemRecord.model_json_schema(),
         "decision_schema": DiagnosticDecision.model_json_schema(),
+        "business_context_model_version": CONTEXT_MODEL_VERSION,
+        "business_context_schema": BusinessContextRecord.model_json_schema(),
     }
 
 
+@app.get("/v1/business-context/demo")
+async def demo_business_context() -> dict[str, Any]:
+    """Return the prepared Northstar workspace without requiring sign-in."""
+
+    return {
+        "model_version": CONTEXT_MODEL_VERSION,
+        "mode": "privacy_safe_demo",
+        "context": _demo_business_context().model_dump(mode="json"),
+        "assistant_message": (
+            "Northstar Studio is ready for growth, product, customer, and "
+            "operations investigations. Cash-flow analysis remains blocked."
+        ),
+        "next_question": _demo_business_context().readiness.next_best_question,
+    }
+
+
+@app.get("/v1/business-contexts/{workspace_id}")
+async def get_business_context(
+    workspace_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await _require_personal_user(authorization)
+    record = runtime_business_contexts.get(workspace_id)
+    if record is None:
+        record = await _load_record("business_contexts", workspace_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Business workspace was not found.")
+    if record.get("owner_user_id") != user.get("uid"):
+        raise HTTPException(status_code=403, detail="This workspace belongs to another user.")
+    return record
+
+
+@app.post("/v1/business-contexts/reconstruct")
+async def reconstruct_business_context(
+    workspace_id: str = Form(..., min_length=3, max_length=120),
+    message: str = Form(default="", max_length=4000),
+    urls_json: str = Form(default="[]"),
+    confirmed_claim_ids_json: str = Form(default="[]"),
+    rejected_claim_ids_json: str = Form(default="[]"),
+    files: list[UploadFile] | None = File(default=None),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Extract evidence, update context with Gemini/ADK, and persist typed facts."""
+
+    user = await _require_personal_user(authorization)
+    try:
+        urls = json.loads(urls_json)
+        confirmed_claim_ids = json.loads(confirmed_claim_ids_json)
+        rejected_claim_ids = json.loads(rejected_claim_ids_json)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Context form JSON is invalid.") from exc
+    if not isinstance(urls, list) or len(urls) > 5:
+        raise HTTPException(status_code=400, detail="Provide no more than five website URLs per update.")
+    if not all(isinstance(item, str) for item in urls):
+        raise HTTPException(status_code=400, detail="Every website URL must be text.")
+
+    existing = runtime_business_contexts.get(workspace_id)
+    if existing is None:
+        existing = await _load_record("business_contexts", workspace_id)
+    if existing and existing.get("owner_user_id") != user.get("uid"):
+        raise HTTPException(status_code=403, detail="This workspace belongs to another user.")
+
+    extracted_evidence: list[dict[str, Any]] = []
+    source_metadata: list[dict[str, Any]] = []
+    if len(files or []) > 8:
+        raise HTTPException(status_code=400, detail="Provide no more than eight files per context update.")
+    try:
+        for upload in files or []:
+            content = await upload.read()
+            await upload.close()
+            extracted = extract_uploaded_file(upload.filename or "upload", content)
+            source_id = f"upload-{uuid.uuid4().hex[:10]}"
+            domain = _infer_evidence_domain(extracted["name"])
+            extracted_evidence.append(
+                {"source_id": source_id, "domain": domain, **extracted}
+            )
+            source_metadata.append(
+                {
+                    "source_id": source_id,
+                    "name": extracted["name"],
+                    "domain": domain,
+                    "source_type": "upload",
+                    "status": "processed",
+                    "provenance": "Founder upload",
+                    "coverage": "Derived from uploaded document",
+                    "freshness": "Uploaded now",
+                    "permission": "uploaded",
+                }
+            )
+        for url in urls:
+            extracted = await extract_public_url(url)
+            source_id = f"web-{uuid.uuid4().hex[:10]}"
+            domain = _infer_evidence_domain(f"{extracted['name']} {url}")
+            extracted_evidence.append(
+                {"source_id": source_id, "domain": domain, **extracted}
+            )
+            source_metadata.append(
+                {
+                    "source_id": source_id,
+                    "name": extracted["name"],
+                    "domain": domain,
+                    "source_type": "website",
+                    "status": "processed",
+                    "provenance": url,
+                    "coverage": "Public page content",
+                    "freshness": "Imported now",
+                    "permission": "read_only",
+                }
+            )
+    except EvidenceExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not message.strip() and not extracted_evidence and not confirmed_claim_ids and not rejected_claim_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Add a message, upload, website, or claim decision before reconstructing context.",
+        )
+
+    if message.strip():
+        source_id = f"founder-{uuid.uuid4().hex[:10]}"
+        source_metadata.append(
+            {
+                "source_id": source_id,
+                "name": "Founder conversation",
+                "domain": "business",
+                "source_type": "founder_chat",
+                "status": "processed",
+                "provenance": "Authenticated founder response",
+                "coverage": "Current onboarding question",
+                "freshness": "Provided now",
+                "permission": "founder_provided",
+            }
+        )
+        extracted_evidence.append(
+            {
+                "source_id": source_id,
+                "domain": "business",
+                "name": "Founder conversation",
+                "text": message.strip(),
+            }
+        )
+
+    prior_context = existing.get("context") if existing else None
+    try:
+        decision = await _run_context_reconstruction(
+            workspace_id=workspace_id,
+            user_id=user["uid"],
+            prior_context=prior_context,
+            source_metadata=source_metadata,
+            extracted_evidence=extracted_evidence,
+            founder_message=message.strip(),
+            confirmed_claim_ids=confirmed_claim_ids,
+            rejected_claim_ids=rejected_claim_ids,
+        )
+    except genai_errors.APIError as exc:
+        retryable = exc.code in {429, 500, 502, 503, 504}
+        raise HTTPException(
+            status_code=503 if retryable else 502,
+            detail={
+                "code": "gemini_temporarily_unavailable" if retryable else "context_reconstruction_failed",
+                "message": "Gemini could not reconstruct the business context. Retry later.",
+                "provider_status": exc.status,
+            },
+        ) from exc
+
+    context_source_ids = {source.source_id for source in decision.context.evidence_sources}
+    for source in source_metadata:
+        if source["source_id"] not in context_source_ids:
+            decision.context.evidence_sources.append(
+                ContextEvidenceSource.model_validate(source)
+            )
+
+    now = datetime.now(UTC).isoformat()
+    version = int(existing.get("version", 0)) + 1 if existing else 1
+    record = {
+        "workspace_id": workspace_id,
+        "owner_user_id": user["uid"],
+        "owner_email": user.get("email"),
+        "version": version,
+        "model_version": CONTEXT_MODEL_VERSION,
+        "created_at": existing.get("created_at", now) if existing else now,
+        "updated_at": now,
+        "context": decision.context.model_dump(mode="json"),
+        "assistant_message": decision.assistant_message,
+        "next_question": decision.next_question,
+        "material_inferences": decision.material_inferences,
+        "pending_confirmation_claim_ids": decision.pending_confirmation_claim_ids,
+        "original_storage": "browser_only",
+    }
+    runtime_business_contexts[workspace_id] = record
+    await _persist("business_contexts", workspace_id, record)
+    await _persist(
+        "context_messages",
+        f"{workspace_id}-{uuid.uuid4().hex[:10]}",
+        {
+            "workspace_id": workspace_id,
+            "owner_user_id": user["uid"],
+            "message": message.strip(),
+            "assistant_message": decision.assistant_message,
+            "created_at": now,
+        },
+    )
+    for source in source_metadata:
+        await _persist(
+            "evidence_sources",
+            source["source_id"],
+            {**source, "workspace_id": workspace_id, "owner_user_id": user["uid"]},
+        )
+    return record
+
+
+@app.post("/v1/business-contexts/{workspace_id}/confirm")
+async def confirm_context_claims(
+    workspace_id: str,
+    request: ContextConfirmationRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    user = await _require_personal_user(authorization)
+    record = runtime_business_contexts.get(workspace_id)
+    if record is None:
+        record = await _load_record("business_contexts", workspace_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Business workspace was not found.")
+    if record.get("owner_user_id") != user.get("uid"):
+        raise HTTPException(status_code=403, detail="This workspace belongs to another user.")
+
+    context = BusinessContextRecord.model_validate(record["context"])
+    confirmed = set(request.confirmed_claim_ids)
+    rejected = set(request.rejected_claim_ids)
+    for claim in context.claims:
+        if claim.claim_id in confirmed:
+            claim.confirmation_status = "confirmed"
+        elif claim.claim_id in rejected:
+            claim.confirmation_status = "rejected"
+    approved_conflicts = set(request.approved_conflict_ids)
+    context.conflicts = [
+        conflict
+        for conflict in context.conflicts
+        if conflict.conflict_id not in approved_conflicts
+    ]
+    context.classification.founder_confirmed = all(
+        claim.confirmation_status != "pending" for claim in context.claims
+    )
+    context = _enforce_context_readiness(context)
+    record["context"] = context.model_dump(mode="json")
+    record["updated_at"] = datetime.now(UTC).isoformat()
+    record["pending_confirmation_claim_ids"] = [
+        claim.claim_id
+        for claim in context.claims
+        if claim.confirmation_status == "pending"
+    ]
+    runtime_business_contexts[workspace_id] = record
+    await _persist("business_contexts", workspace_id, record)
+    return record
+
+
 @app.post("/v1/diagnose")
-async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
+async def diagnose(
+    request: DiagnoseRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    context_record: dict[str, Any] | None = None
+    runtime_user_id = request.user_id
+    if request.workspace_id:
+        user = await _require_personal_user(authorization)
+        runtime_user_id = user["uid"]
+        context_record = runtime_business_contexts.get(request.workspace_id)
+        if context_record is None:
+            context_record = await _load_record("business_contexts", request.workspace_id)
+        if context_record is None:
+            raise HTTPException(status_code=404, detail="Business workspace was not found.")
+        if context_record.get("owner_user_id") != user.get("uid"):
+            raise HTTPException(status_code=403, detail="This workspace belongs to another user.")
+
     session_id = f"{request.incident_id.lower()}-{uuid.uuid4().hex[:8]}"
     await session_service.create_session(
         app_name=APP_NAME,
-        user_id=request.user_id,
+        user_id=runtime_user_id,
         session_id=session_id,
+    )
+    context_snapshot = BusinessContextRecord.model_validate(
+        context_record["context"] if context_record else _demo_business_context()
     )
     diagnostic_payload: dict[str, Any] = {
         "incident_id": request.incident_id,
         "concern": request.concern,
+        "business_context_version": (
+            context_record.get("version") if context_record else "northstar-demo-v1"
+        ),
+        "business_context": {
+            "classification": context_snapshot.classification.model_dump(mode="json"),
+            "economic_engine": [stage.model_dump(mode="json") for stage in context_snapshot.economic_engine],
+            "operating_system": [area.model_dump(mode="json") for area in context_snapshot.operating_system],
+            "external_dependencies": context_snapshot.external_dependencies,
+            "metrics": [
+                {
+                    "metric_id": metric.metric_id,
+                    "label": metric.label,
+                    "current_value": metric.current_value,
+                    "expected_low": metric.expected_low,
+                    "expected_high": metric.expected_high,
+                    "standard_type": metric.standard_type,
+                    "trend": metric.trend,
+                    "source_ids": metric.source_ids,
+                }
+                for metric in context_snapshot.metrics
+            ],
+            "timeline_events": [event.model_dump(mode="json") for event in context_snapshot.timeline_events],
+            "selected_frameworks": [framework.model_dump(mode="json") for framework in context_snapshot.selected_frameworks],
+            "readiness": context_snapshot.readiness.model_dump(mode="json"),
+        },
         "instruction": "Run the complete diagnostic proof gate.",
     }
     if EXECUTION_MODE == "compact":
@@ -354,7 +875,7 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
     final_text = ""
     try:
         async for event in runner.run_async(
-            user_id=request.user_id,
+            user_id=runtime_user_id,
             session_id=session_id,
             new_message=message,
         ):
