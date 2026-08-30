@@ -17,9 +17,19 @@ from google.genai import errors as genai_errors
 from pydantic import BaseModel, Field
 
 from proofloop.agent import root_agent
+from proofloop.schemas import DiagnosticDecision, RootProblemRecord
 
 
 APP_NAME = "proofloop"
+MODEL_VERSION = "proofloop-root-problem-v1"
+AGENT_STAGES = [
+    "signal_validation",
+    "systems_investigation",
+    "hypothesis_generation",
+    "falsification",
+    "root_problem_definition",
+    "intervention_planning",
+]
 session_service = InMemorySessionService()
 runner = Runner(
     app_name=APP_NAME,
@@ -83,6 +93,19 @@ async def health() -> dict[str, str]:
     }
 
 
+@app.get("/v1/model")
+async def structured_model() -> dict[str, Any]:
+    """Publish the agent's auditable reasoning contract for the web app."""
+    return {
+        "model_version": MODEL_VERSION,
+        "agent_framework": "Google ADK",
+        "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite"),
+        "stages": AGENT_STAGES,
+        "root_problem_schema": RootProblemRecord.model_json_schema(),
+        "decision_schema": DiagnosticDecision.model_json_schema(),
+    }
+
+
 @app.post("/v1/diagnose")
 async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
     session_id = f"{request.incident_id.lower()}-{uuid.uuid4().hex[:8]}"
@@ -143,6 +166,8 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
         "incident_id": request.incident_id,
         "status": "awaiting_approval",
         "created_at": datetime.now(UTC).isoformat(),
+        "model_version": MODEL_VERSION,
+        "agent_stages": AGENT_STAGES,
         "decision": decision,
     }
     await _persist("diagnostic_runs", session_id, envelope)

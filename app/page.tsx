@@ -12,6 +12,7 @@ import {
   Clock3,
   Database,
   ExternalLink,
+  FileJson2,
   FileCode2,
   GitBranch,
   Globe2,
@@ -49,6 +50,83 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Stage = "detect" | "investigate" | "define" | "act" | "measure" | "learn";
 
+type EvidenceReference = {
+  evidence_id: string;
+  source: string;
+  claim: string;
+  reliability: "low" | "medium" | "high";
+  relationship: "supports" | "contradicts" | "context";
+};
+
+type RootProblemRecord = {
+  incident_id: string;
+  signal: string;
+  expected_state: string;
+  actual_state: string;
+  affected_segment: string;
+  business_impact: string;
+  problem_statement: string;
+  proximate_cause: string;
+  systemic_cause: string;
+  status: string;
+  evidence: EvidenceReference[];
+  alternatives_considered: string[];
+  missing_evidence: string[];
+  disconfirming_test: string;
+  limitations: string[];
+};
+
+type InterventionPlan = {
+  name: string;
+  action: string;
+  scope: string;
+  reversibility: string;
+  approval_required: boolean;
+  primary_metric: string;
+  success_threshold: string;
+  guardrails: string[];
+  observation_window: string;
+  stop_condition: string;
+};
+
+type DiagnosticEnvelope = {
+  run_id: string;
+  incident_id: string;
+  status: string;
+  created_at: string;
+  model_version: string;
+  agent_stages: string[];
+  decision: {
+    root_problem: RootProblemRecord;
+    intervention: InterventionPlan;
+    next_stage: "gather_evidence" | "request_approval" | "monitor";
+    plain_language_summary: string;
+  };
+};
+
+type EvaluationResult = {
+  status: string;
+  evaluated_at: string;
+  outcome: {
+    control_progression: number;
+    rollback_progression: number;
+    relative_lift: number;
+    sample_size: number;
+    guardrails_passed: boolean;
+  };
+  learned_rule: string;
+};
+
+type HypothesisCard = {
+  rank: number;
+  title: string;
+  confidence: string;
+  score?: number;
+  supporting: number;
+  contradicting: number;
+  next: string;
+};
+
 const stages: Array<{ id: Stage; label: string; icon: typeof Activity }> = [
   { id: "detect", label: "Detect", icon: Radar },
   { id: "investigate", label: "Investigate", icon: Search },
@@ -58,7 +136,7 @@ const stages: Array<{ id: Stage; label: string; icon: typeof Activity }> = [
   { id: "learn", label: "Learn", icon: BrainCircuit },
 ];
 
-const evidence = [
+const demoEvidence = [
   {
     source: "Looker",
     title: "Mobile Safari pricing → payment fell 38%",
@@ -89,7 +167,7 @@ const evidence = [
   },
 ];
 
-const hypotheses = [
+const demoHypotheses: HypothesisCard[] = [
   {
     rank: 1,
     title: "Mobile pricing-selector regression",
@@ -169,6 +247,10 @@ function SourceMark({ type }: { type: string }) {
   return <Icon aria-hidden="true" />;
 }
 
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function Home() {
   const [stage, setStage] = useState<Stage>("define");
   const [isRunning, setIsRunning] = useState(false);
@@ -177,15 +259,51 @@ export default function Home() {
   const [lastUpdated, setLastUpdated] = useState("2 min ago");
   const [runId, setRunId] = useState<string | null>(null);
   const [backendMode, setBackendMode] = useState<"demo" | "calling" | "live" | "fallback">("demo");
+  const [incidentId, setIncidentId] = useState("PL-0047");
+  const [concern, setConcern] = useState("Paid traffic is rising while purchases are falling.");
+  const [diagnostic, setDiagnostic] = useState<DiagnosticEnvelope | null>(null);
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  const rootProblem = diagnostic?.decision.root_problem;
+  const intervention = diagnostic?.decision.intervention;
+  const displayEvidence = useMemo(() => {
+    if (!rootProblem) return demoEvidence;
+    return rootProblem.evidence.map((item) => ({
+      source: humanize(item.source),
+      title: item.claim,
+      detail: `${humanize(item.relationship)} the current diagnosis · Evidence ID ${item.evidence_id}`,
+      reliability: humanize(item.reliability),
+      tone: item.relationship === "contradicts" ? "negative" : "positive",
+    }));
+  }, [rootProblem]);
+  const displayHypotheses = useMemo<HypothesisCard[]>(() => {
+    if (!rootProblem) return demoHypotheses;
+    const supporting = rootProblem.evidence.filter((item) => item.relationship === "supports").length;
+    const contradicting = rootProblem.evidence.filter((item) => item.relationship === "contradicts").length;
+    return [
+      {
+        rank: 1,
+        title: rootProblem.proximate_cause,
+        confidence: humanize(rootProblem.status),
+        supporting,
+        contradicting,
+        next: rootProblem.disconfirming_test,
+      },
+      ...rootProblem.alternatives_considered.map((title, index) => ({
+        rank: index + 2,
+        title,
+        confidence: "Alternative",
+        supporting: 0,
+        contradicting: 0,
+        next: "Gather discriminating evidence before acting",
+      })),
+    ];
+  }, [rootProblem]);
 
   useEffect(() => {
     if (!isRunning) return;
-    if (runIndex >= runSteps.length) {
-      setIsRunning(false);
-      setStage("define");
-      setLastUpdated("just now");
-      return;
-    }
+    if (runIndex >= runSteps.length - 1) return;
     const timer = window.setTimeout(() => setRunIndex((value) => value + 1), 620);
     return () => window.clearTimeout(timer);
   }, [isRunning, runIndex]);
@@ -197,58 +315,100 @@ export default function Home() {
   }, [actionStatus]);
 
   async function callLiveDiagnostic() {
-    if (!API_URL) return;
+    if (!API_URL) {
+      setBackendMode("fallback");
+      setRequestError("The agent API is not connected yet. Add NEXT_PUBLIC_PROOFLOOP_API_URL in Vercel to run Gemini.");
+      setIsRunning(false);
+      return;
+    }
     setBackendMode("calling");
     try {
       const response = await fetch(`${API_URL}/v1/diagnose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          incident_id: "PL-0047",
-          concern: "Paid traffic is rising while purchases are falling.",
-          user_id: "demo-founder",
+          incident_id: incidentId.trim(),
+          concern: concern.trim(),
+          user_id: "vivien",
         }),
       });
-      if (!response.ok) throw new Error("Agent request failed");
       const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.detail?.message ?? payload?.detail ?? "The agent request failed.");
+      }
+      const envelope = payload as DiagnosticEnvelope;
+      setDiagnostic(envelope);
+      setIncidentId(envelope.incident_id);
+      setActionStatus("ready");
+      setEvaluation(null);
       setRunId(payload.run_id);
       setBackendMode("live");
-    } catch {
+      setStage("define");
+      setLastUpdated("just now");
+    } catch (error) {
       setBackendMode("fallback");
+      setRequestError(error instanceof Error ? error.message : "The diagnostic could not be completed.");
+    } finally {
+      setRunIndex(runSteps.length);
+      setIsRunning(false);
     }
   }
 
   function runDiagnostic() {
+    if (!incidentId.trim() || !concern.trim()) {
+      setRequestError("Add an incident ID and describe the business concern first.");
+      return;
+    }
+    setRequestError(null);
     setStage("investigate");
     setRunIndex(0);
     setIsRunning(true);
     void callLiveDiagnostic();
   }
 
-  function launchIntervention() {
-    setActionStatus("monitoring");
-    setStage("measure");
-    setLastUpdated("just now");
-    if (API_URL && runId) {
-      void fetch(`${API_URL}/v1/interventions/${runId}/approve`, {
+  async function launchIntervention() {
+    if (!API_URL || !runId) {
+      setRequestError("Run the live diagnostic before approving an intervention.");
+      return;
+    }
+    setRequestError(null);
+    try {
+      const response = await fetch(`${API_URL}/v1/interventions/${runId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          approved_by: "demo-founder",
+          approved_by: "vivien",
           scope_acknowledged: true,
         }),
       });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.detail ?? "Approval failed.");
+      setActionStatus("monitoring");
+      setStage("measure");
+      setLastUpdated("just now");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Approval failed.");
     }
   }
 
-  function verifyOutcome() {
-    setActionStatus("verified");
-    setStage("learn");
-    setLastUpdated("just now");
-    if (API_URL && runId) {
-      void fetch(`${API_URL}/v1/interventions/${runId}/evaluate`, {
+  async function verifyOutcome() {
+    if (!API_URL || !runId) {
+      setRequestError("Approve a live intervention before evaluating it.");
+      return;
+    }
+    setRequestError(null);
+    try {
+      const response = await fetch(`${API_URL}/v1/interventions/${runId}/evaluate`, {
         method: "POST",
       });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.detail ?? "Evaluation failed.");
+      setEvaluation(payload as EvaluationResult);
+      setActionStatus("verified");
+      setStage("learn");
+      setLastUpdated("just now");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Evaluation failed.");
     }
   }
 
@@ -305,19 +465,40 @@ export default function Home() {
         <header className="topbar">
           <div>
             <div className="eyebrow-row">
-              <span className="incident-code">PL–0047</span>
+              <span className="incident-code">{incidentId}</span>
               <span className="severity-pill"><TriangleAlert /> Revenue risk</span>
             </div>
-            <h1>Paid traffic is rising. Purchases are falling.</h1>
+            <h1>{concern}</h1>
           </div>
           <div className="topbar-actions">
             <span className="updated-label"><Clock3 /> Updated {lastUpdated}</span>
-            <Button variant="outline" onClick={runDiagnostic} disabled={isRunning} className="replay-button">
-              {isRunning ? <RefreshCw className="animate-spin" /> : <Play />}
-              {isRunning ? "Investigating" : "Run diagnostic"}
-            </Button>
           </div>
         </header>
+
+        <section className="agent-intake" aria-label="Start a structured business diagnosis">
+          <label>
+            <span>Incident ID</span>
+            <input value={incidentId} onChange={(event) => setIncidentId(event.target.value)} maxLength={80} />
+          </label>
+          <label className="concern-field">
+            <span>What changed—or what are you worried about?</span>
+            <textarea value={concern} onChange={(event) => setConcern(event.target.value)} maxLength={1000} rows={2} />
+          </label>
+          <div className="intake-action">
+            <span><FileJson2 /> Typed Root Problem Record</span>
+            <Button onClick={runDiagnostic} disabled={isRunning}>
+              {isRunning ? <RefreshCw className="animate-spin" /> : <Sparkles />}
+              {isRunning ? "Agent investigating" : "Run AI diagnosis"}
+            </Button>
+          </div>
+        </section>
+
+        {requestError && (
+          <div className="request-error" role="alert">
+            <TriangleAlert />
+            <span>{requestError}</span>
+          </div>
+        )}
 
         {isRunning && (
           <section className="agent-run" aria-live="polite">
@@ -335,27 +516,21 @@ export default function Home() {
           </section>
         )}
 
-        <section className="metric-strip" aria-label="Incident metrics">
-          <article>
-            <span>Ad clicks</span>
-            <strong>12,840</strong>
-            <em className="metric-up">+22.4%</em>
-          </article>
-          <article>
-            <span>Purchase conversion</span>
-            <strong>8.5%</strong>
-            <em className="metric-down">−24.1%</em>
-          </article>
-          <article>
-            <span>Revenue at risk</span>
-            <strong>$4.8k</strong>
-            <em>monthly estimate</em>
-          </article>
-          <article className="metric-chart-card">
-            <div><span>Conversion trend</span><em>Release v1.8.4</em></div>
-            <MiniTrend recovered={actionStatus === "verified"} />
-          </article>
-        </section>
+        {rootProblem ? (
+          <section className="metric-strip structured-metrics" aria-label="Structured incident summary">
+            <article><span>Observed signal</span><strong>{rootProblem.signal}</strong></article>
+            <article><span>Affected segment</span><strong>{rootProblem.affected_segment}</strong></article>
+            <article><span>Business impact</span><strong>{rootProblem.business_impact}</strong></article>
+            <article><span>Evidence state</span><strong>{humanize(rootProblem.status)}</strong><em>{diagnostic?.model_version}</em></article>
+          </section>
+        ) : (
+          <section className="metric-strip" aria-label="Example incident metrics">
+            <article><span>Ad clicks</span><strong>12,840</strong><em className="metric-up">+22.4%</em></article>
+            <article><span>Purchase conversion</span><strong>8.5%</strong><em className="metric-down">−24.1%</em></article>
+            <article><span>Revenue at risk</span><strong>$4.8k</strong><em>monthly estimate</em></article>
+            <article className="metric-chart-card"><div><span>Conversion trend</span><em>Release v1.8.4</em></div><MiniTrend recovered={actionStatus === "verified"} /></article>
+          </section>
+        )}
 
         <div className="stage-canvas">
           {stage === "detect" && (
@@ -388,7 +563,7 @@ export default function Home() {
             <section className="stage-panel">
               <div className="panel-heading">
                 <div><span className="section-number">02 / Investigate</span><h2>Evidence before explanation</h2></div>
-                <Badge variant="outline" className="status-badge"><Database /> 4 sources · 26 observations</Badge>
+                <Badge variant="outline" className="status-badge"><Database /> {displayEvidence.length} evidence records</Badge>
               </div>
               <Tabs defaultValue="evidence" className="evidence-tabs">
                 <TabsList variant="line">
@@ -397,7 +572,7 @@ export default function Home() {
                   <TabsTrigger value="system">Business system</TabsTrigger>
                 </TabsList>
                 <TabsContent value="evidence" className="evidence-ledger">
-                  {evidence.map((item) => (
+                  {displayEvidence.map((item) => (
                     <article key={item.title}>
                       <div className={`source-icon ${item.tone}`}><SourceMark type={item.source} /></div>
                       <div className="evidence-copy"><span>{item.source}</span><strong>{item.title}</strong><p>{item.detail}</p></div>
@@ -406,11 +581,15 @@ export default function Home() {
                   ))}
                 </TabsContent>
                 <TabsContent value="hypotheses" className="hypothesis-list">
-                  {hypotheses.map((item) => (
+                  {displayHypotheses.map((item) => (
                     <article key={item.rank} className={item.rank === 1 ? "leading-hypothesis" : ""}>
                       <div className="rank">0{item.rank}</div>
                       <div className="hypothesis-copy"><div><strong>{item.title}</strong><Badge variant="outline">{item.confidence}</Badge></div><p>Next test: {item.next}</p></div>
-                      <div className="score-ring" style={{ "--score": `${item.score * 3.6}deg` } as React.CSSProperties}><span>{item.score}</span></div>
+                      {item.score !== undefined ? (
+                        <div className="score-ring" style={{ "--score": `${item.score * 3.6}deg` } as React.CSSProperties}><span>{item.score}</span></div>
+                      ) : (
+                        <div className="evidence-state"><span>{item.rank === 1 ? "Leading" : "Open"}</span></div>
+                      )}
                       <div className="evidence-count"><span className="supports">+{item.supporting}</span><span className="contradicts">−{item.contradicting}</span></div>
                     </article>
                   ))}
@@ -432,46 +611,54 @@ export default function Home() {
             <section className="stage-panel root-panel">
               <div className="panel-heading">
                 <div><span className="section-number">03 / Define the actual problem</span><h2>What is actually wrong?</h2></div>
-                <Badge variant="outline" className="status-badge supported"><ShieldCheck /> Supported · ready to test</Badge>
+                <Badge variant="outline" className="status-badge supported"><ShieldCheck /> {rootProblem ? humanize(rootProblem.status) : "Supported"} · ready to test</Badge>
               </div>
 
               <div className="root-layout">
                 <article className="root-statement">
                   <div className="statement-kicker"><Target /> Root problem to test</div>
-                  <p>
-                    Qualified <mark>mobile Safari visitors</mark> are unable to advance from pricing to payment because the new selector leaves the primary CTA in a disabled state.
-                  </p>
+                  <p>{rootProblem?.problem_statement ?? "Qualified mobile Safari visitors are unable to advance from pricing to payment because the new selector leaves the primary CTA in a disabled state."}</p>
                   <div className="root-meta">
-                    <div><span>Affected</span><strong>38% of mobile Safari sessions</strong></div>
-                    <div><span>Business consequence</span><strong>$4.8k monthly revenue at risk</strong></div>
-                    <div><span>First observed</span><strong>34 min after release v1.8.4</strong></div>
+                    <div><span>Affected</span><strong>{rootProblem?.affected_segment ?? "38% of mobile Safari sessions"}</strong></div>
+                    <div><span>Business consequence</span><strong>{rootProblem?.business_impact ?? "$4.8k monthly revenue at risk"}</strong></div>
+                    <div><span>Actual vs expected</span><strong>{rootProblem?.actual_state ?? "Decline began 34 min after release v1.8.4"}</strong></div>
                   </div>
                 </article>
 
                 <article className="causal-chain">
                   <div className="causal-label">Causal chain</div>
-                  <div className="cause-node"><span>Observed signal</span><strong>Purchase conversion ↓ 24%</strong></div>
+                  <div className="cause-node"><span>Observed signal</span><strong>{rootProblem?.signal ?? "Purchase conversion ↓ 24%"}</strong></div>
                   <div className="chain-line"><ChevronRight /></div>
-                  <div className="cause-node"><span>Proximate cause</span><strong>CTA cannot be activated</strong></div>
+                  <div className="cause-node"><span>Proximate cause</span><strong>{rootProblem?.proximate_cause ?? "CTA cannot be activated"}</strong></div>
                   <div className="chain-line"><ChevronRight /></div>
-                  <div className="cause-node systemic"><span>Systemic root cause</span><strong>No mobile-browser release gate</strong></div>
+                  <div className="cause-node systemic"><span>Systemic root cause</span><strong>{rootProblem?.systemic_cause ?? "No mobile-browser release gate"}</strong></div>
                 </article>
               </div>
 
               <div className="reasoning-grid">
                 <article>
                   <div className="reasoning-icon positive"><Check /></div>
-                  <div><span>Why this fits</span><strong>Four independent observations predict the same mechanism.</strong><p>Segment, timing, user reports, and release evidence converge.</p></div>
+                  <div><span>Why this fits</span><strong>{rootProblem ? `${rootProblem.evidence.filter((item) => item.relationship === "supports").length} cited observations support the mechanism.` : "Four independent observations predict the same mechanism."}</strong><p>{rootProblem?.evidence[0]?.claim ?? "Segment, timing, user reports, and release evidence converge."}</p></div>
                 </article>
                 <article>
                   <div className="reasoning-icon negative"><X /></div>
-                  <div><span>What it is probably not</span><strong>Lower-quality paid traffic.</strong><p>Upstream campaign quality and engagement remain within baseline.</p></div>
+                  <div><span>Competing explanation</span><strong>{rootProblem?.alternatives_considered[0] ?? "Lower-quality paid traffic."}</strong><p>{rootProblem ? "This remains recorded until discriminating evidence rules it out." : "Upstream campaign quality and engagement remain within baseline."}</p></div>
                 </article>
                 <article>
                   <div className="reasoning-icon neutral"><Lightbulb /></div>
-                  <div><span>What would prove it</span><strong>A controlled rollback restores progression.</strong><p>Compare affected Safari sessions against the current experience.</p></div>
+                  <div><span>What could disprove it</span><strong>{rootProblem?.disconfirming_test ?? "A controlled rollback fails to restore progression."}</strong><p>{rootProblem?.limitations[0] ?? "Compare affected Safari sessions against the current experience."}</p></div>
                 </article>
               </div>
+
+              <article className="model-contract">
+                <div className="contract-heading"><FileJson2 /><div><span>Structured AI model</span><strong>RootProblemRecord · validated before action</strong></div></div>
+                <div className="contract-fields">
+                  <div><span>Expected state</span><strong>{rootProblem?.expected_state ?? "Conversion remains stable as qualified traffic grows."}</strong></div>
+                  <div><span>Actual state</span><strong>{rootProblem?.actual_state ?? "Mobile Safari progression declined after the pricing release."}</strong></div>
+                  <div><span>Missing evidence</span><strong>{rootProblem?.missing_evidence.join(" · ") || "Safari reproduction test"}</strong></div>
+                  <div><span>Next decision gate</span><strong>{diagnostic ? humanize(diagnostic.decision.next_stage) : "Request approval"}</strong></div>
+                </div>
+              </article>
 
               <div className="decision-bar">
                 <div><LockKeyhole /><span><strong>Proof gate passed</strong> The proposed intervention is bounded, reversible, and measurable.</span></div>
@@ -489,23 +676,23 @@ export default function Home() {
               <div className="intervention-layout">
                 <article className="intervention-card">
                   <div className="intervention-top"><span>Recommended intervention</span><Badge variant="outline">Low risk</Badge></div>
-                  <h3>Guarded rollback for mobile Safari</h3>
-                  <p>Route 50% of affected sessions to the previous pricing component. Leave all other traffic unchanged.</p>
+                  <h3>{intervention?.name ?? "Guarded rollback for mobile Safari"}</h3>
+                  <p>{intervention?.action ?? "Route 50% of affected sessions to the previous pricing component. Leave all other traffic unchanged."}</p>
                   <div className="intervention-specs">
-                    <div><span>Primary metric</span><strong>Pricing → payment progression</strong></div>
-                    <div><span>Success threshold</span><strong>≥ 12% relative recovery</strong></div>
-                    <div><span>Observation window</span><strong>24 hours or 1,200 sessions</strong></div>
-                    <div><span>Automatic stop</span><strong>Revenue/session declines &gt; 5%</strong></div>
+                    <div><span>Primary metric</span><strong>{intervention?.primary_metric ?? "Pricing → payment progression"}</strong></div>
+                    <div><span>Success threshold</span><strong>{intervention?.success_threshold ?? "≥ 12% relative recovery"}</strong></div>
+                    <div><span>Observation window</span><strong>{intervention?.observation_window ?? "24 hours or 1,200 sessions"}</strong></div>
+                    <div><span>Automatic stop</span><strong>{intervention?.stop_condition ?? "Revenue/session declines > 5%"}</strong></div>
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button disabled={actionStatus !== "ready"} className="launch-button"><Play /> {actionStatus === "ready" ? "Approve and launch test" : "Test already launched"}</Button>
+                      <Button disabled={actionStatus !== "ready" || !runId} className="launch-button"><Play /> {!runId ? "Run live diagnosis first" : actionStatus === "ready" ? "Approve and launch test" : "Test already launched"}</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogMedia><ShieldCheck /></AlertDialogMedia>
                         <AlertDialogTitle>Launch the guarded rollback?</AlertDialogTitle>
-                        <AlertDialogDescription>ProofLoop will create the intervention record, route the test cohort, and begin the 24-hour measurement window. It will not change ad budgets or affect desktop traffic.</AlertDialogDescription>
+                        <AlertDialogDescription>ProofLoop will record human approval and begin the predefined measurement contract. Scope: {intervention?.scope ?? "mobile Safari only"}. This action remains bounded by the documented stop condition.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Keep investigating</AlertDialogCancel>
@@ -536,9 +723,9 @@ export default function Home() {
               </div>
               <div className="measure-layout">
                 <article className="outcome-chart">
-                  <div className="signal-header"><div><span>Pricing → payment progression</span><strong>{actionStatus === "verified" ? "+16.8%" : "Collecting…"}</strong></div><Badge variant="outline">Safari cohort</Badge></div>
+                  <div className="signal-header"><div><span>{intervention?.primary_metric ?? "Pricing → payment progression"}</span><strong>{evaluation ? `+${(evaluation.outcome.relative_lift * 100).toFixed(1)}%` : "Collecting…"}</strong></div><Badge variant="outline">Test cohort</Badge></div>
                   <MiniTrend recovered={actionStatus === "verified"} />
-                  <div className="comparison-row"><div><span>Control</span><strong>41.2%</strong></div><div><span>Rollback cohort</span><strong>{actionStatus === "verified" ? "48.1%" : "—"}</strong></div><div><span>Sessions</span><strong>{actionStatus === "verified" ? "1,284" : "628 / 1,200"}</strong></div></div>
+                  <div className="comparison-row"><div><span>Control</span><strong>{evaluation ? `${(evaluation.outcome.control_progression * 100).toFixed(1)}%` : "—"}</strong></div><div><span>Intervention</span><strong>{evaluation ? `${(evaluation.outcome.rollback_progression * 100).toFixed(1)}%` : "—"}</strong></div><div><span>Sessions</span><strong>{evaluation?.outcome.sample_size.toLocaleString() ?? "Collecting"}</strong></div></div>
                 </article>
                 <article className="evaluation-card">
                   <span className="evaluation-kicker">Causal evaluation</span>
@@ -564,10 +751,10 @@ export default function Home() {
               </div>
               <div className="learning-hero">
                 <div className="learning-mark"><Sparkles /></div>
-                <span>Verified operating rule · Frontstage reliability</span>
-                <h3>Revenue-critical interface releases must pass mobile Safari regression checks before full rollout.</h3>
-                <p>When a conversion decline begins after a frontstage release while acquisition quality remains stable, test the affected experience before changing advertising spend.</p>
-                <div className="learning-evidence"><span><CheckCircle2 /> Supported by intervention PL–0047</span><span><Database /> 1,284 evaluated sessions</span><span><Clock3 /> Learned Aug 29, 2026</span></div>
+                <span>Verified operating rule · Business memory</span>
+                <h3>{evaluation?.learned_rule ?? "Revenue-critical interface releases must pass mobile Safari regression checks before full rollout."}</h3>
+                <p>{diagnostic?.decision.plain_language_summary ?? "When a conversion decline begins after a frontstage release while acquisition quality remains stable, test the affected experience before changing advertising spend."}</p>
+                <div className="learning-evidence"><span><CheckCircle2 /> Supported by intervention {diagnostic?.incident_id ?? "PL–0047"}</span><span><Database /> {evaluation?.outcome.sample_size.toLocaleString() ?? "1,284"} evaluated sessions</span><span><Clock3 /> {evaluation ? new Date(evaluation.evaluated_at).toLocaleDateString() : "Example learning"}</span></div>
               </div>
               <div className="next-time-grid">
                 <article><span>Next detection</span><strong>Watch pricing progression by browser after every release.</strong></article>
@@ -580,7 +767,7 @@ export default function Home() {
         </div>
 
         <footer className="app-footer">
-          <span><Sparkles /> Gemini 3.5</span>
+          <span><Sparkles /> Gemini 3.5 Flash-Lite</span>
           <span>Google ADK</span>
           <span>Cloud Run</span>
           <span>Firestore</span>
@@ -590,7 +777,7 @@ export default function Home() {
               : backendMode === "calling"
                 ? "Connecting to Gemini agent…"
                 : backendMode === "fallback"
-                  ? "Agent unavailable · privacy-safe replay active"
+                  ? "Agent backend not connected · example remains visible"
                   : "Synthetic, privacy-safe demonstration data"}
           </span>
         </footer>

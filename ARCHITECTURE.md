@@ -27,6 +27,10 @@ flowchart TD
 | Firestore | Persists diagnostic runs, approvals, proof records, and learned rules |
 | Cloud Run | Hosts the Python API with a dedicated service identity |
 
+## Structured agent contract
+
+The model is not allowed to return an unstructured recommendation. The ADK sequence culminates in a Pydantic-validated `DiagnosticDecision` containing a `RootProblemRecord`, an `InterventionPlan`, the next decision gate, and a plain-language summary. `/v1/model` publishes the exact JSON schemas used by the application, and the Vercel interface renders the returned fields rather than replacing them with generated prose.
+
 ## Proof gate
 
 ```mermaid

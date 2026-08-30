@@ -34,7 +34,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the interface uses its privacy-safe demonstration flow. To connect the agent, add the Cloud Run service URL to `.env.local`:
+Open `http://localhost:3000`. Without `NEXT_PUBLIC_PROOFLOOP_API_URL`, the interface displays the labeled example incident but will not claim that Gemini ran or allow a simulated approval. To connect the real agent, add the Cloud Run service URL to `.env.local`:
 
 ```env
 NEXT_PUBLIC_PROOFLOOP_API_URL=https://your-cloud-run-service.run.app
@@ -128,9 +128,12 @@ Every push to `main` triggers a new Vercel production build. The Python backend 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Runtime, model, and mode check |
+| `GET` | `/v1/model` | Publish the six-stage workflow and typed JSON schemas |
 | `POST` | `/v1/diagnose` | Run the complete ADK diagnostic proof gate |
 | `POST` | `/v1/interventions/{run_id}/approve` | Record scoped human authorization |
 | `POST` | `/v1/interventions/{run_id}/evaluate` | Evaluate the locked intervention contract |
+
+The web app binds the returned `DiagnosticDecision` directly into the evidence ledger, competing hypotheses, Root Problem Record, intervention contract, evaluation, and learned rule. UI state advances only after the corresponding API request succeeds.
 
 ## Safety principles
 
