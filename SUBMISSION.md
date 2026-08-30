@@ -16,6 +16,10 @@ Founders have dashboards that report what happened and AI tools that produce gen
 
 ProofLoop investigates a business anomaly before recommending action. It validates the signal, maps the affected system, generates competing causal hypotheses, tries to disprove its leading explanation, creates a typed Root Problem Record, proposes a reversible intervention, verifies the result, and converts validated outcomes into reusable operating rules.
 
+For reliable live judging, the hosted ADK agent applies the six-stage proof
+contract in one schema-constrained Gemini call. The repository also includes
+the expanded sequential six-agent implementation.
+
 ## Demonstrated workflow
 
 The demo begins with paid clicks increasing 22.4% while purchase conversion falls 24.1%. ProofLoop combines synthetic Google Ads-, Looker-, release-log-, and customer-voice-shaped evidence. It determines that acquisition remains healthy while a Mobile Safari pricing-selector failure is the leading supported cause. It requests approval for a scoped rollback, evaluates the locked metrics, measures a 16.8% relative lift, and records a verified release-quality rule.

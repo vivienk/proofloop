@@ -1,5 +1,5 @@
 """ProofLoop ADK agent package."""
 
-from .agent import root_agent
+from .agent import compact_agent, root_agent
 
-__all__ = ["root_agent"]
+__all__ = ["compact_agent", "root_agent"]

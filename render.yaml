@@ -17,6 +17,8 @@ services:
         value: "false"
       - key: PROOFLOOP_MODEL
         value: gemini-3.6-flash
+      - key: PROOFLOOP_EXECUTION_MODE
+        value: compact
       - key: PROOFLOOP_DATA_MODE
         value: demo
       - key: PROOFLOOP_PERSISTENCE_MODE

@@ -17,12 +17,13 @@ from google.genai import types
 from google.genai import errors as genai_errors
 from pydantic import BaseModel, Field
 
-from proofloop.agent import root_agent
+from proofloop.agent import compact_agent, root_agent
+from proofloop.connectors import load_business_evidence
 from proofloop.schemas import DiagnosticDecision, RootProblemRecord
 
 
 APP_NAME = "proofloop"
-MODEL_VERSION = "proofloop-root-problem-v1"
+MODEL_VERSION = "proofloop-root-problem-v2"
 DEFAULT_ALLOWED_ORIGINS = (
     "http://localhost:3000,https://proofloop-flywheel.vercel.app"
 )
@@ -35,9 +36,11 @@ AGENT_STAGES = [
     "intervention_planning",
 ]
 session_service = InMemorySessionService()
+EXECUTION_MODE = os.getenv("PROOFLOOP_EXECUTION_MODE", "sequential").strip().lower()
+selected_agent = compact_agent if EXECUTION_MODE == "compact" else root_agent
 runner = Runner(
     app_name=APP_NAME,
-    agent=root_agent,
+    agent=selected_agent,
     session_service=session_service,
 )
 
@@ -148,6 +151,7 @@ async def health() -> dict[str, str]:
         "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.6-flash"),
         "mode": data_mode,
         "persistence": persistence_mode,
+        "execution_mode": EXECUTION_MODE,
     }
 
 
@@ -158,6 +162,7 @@ async def structured_model() -> dict[str, Any]:
         "model_version": MODEL_VERSION,
         "agent_framework": "Google ADK",
         "model": os.getenv("PROOFLOOP_MODEL", "gemini-3.6-flash"),
+        "execution_mode": EXECUTION_MODE,
         "stages": AGENT_STAGES,
         "root_problem_schema": RootProblemRecord.model_json_schema(),
         "decision_schema": DiagnosticDecision.model_json_schema(),
@@ -172,17 +177,19 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
         user_id=request.user_id,
         session_id=session_id,
     )
+    diagnostic_payload: dict[str, Any] = {
+        "incident_id": request.incident_id,
+        "concern": request.concern,
+        "instruction": "Run the complete diagnostic proof gate.",
+    }
+    if EXECUTION_MODE == "compact":
+        diagnostic_payload["evidence"] = load_business_evidence(request.incident_id)
+
     message = types.Content(
         role="user",
         parts=[
             types.Part(
-                text=json.dumps(
-                    {
-                        "incident_id": request.incident_id,
-                        "concern": request.concern,
-                        "instruction": "Run the complete diagnostic proof gate.",
-                    }
-                )
+                text=json.dumps(diagnostic_payload)
             )
         ],
     )
@@ -225,6 +232,7 @@ async def diagnose(request: DiagnoseRequest) -> dict[str, Any]:
         "status": "awaiting_approval",
         "created_at": datetime.now(UTC).isoformat(),
         "model_version": MODEL_VERSION,
+        "execution_mode": EXECUTION_MODE,
         "agent_stages": AGENT_STAGES,
         "decision": decision,
     }

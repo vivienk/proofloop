@@ -20,7 +20,7 @@ flowchart TD
 |---|---|
 | Next.js on Vercel | Presents the six-stage diagnostic workbench and calls the agent API |
 | FastAPI | Validates requests and exposes diagnosis, approval, and evaluation endpoints |
-| ADK | Sequences six specialized diagnostic agents and preserves session state |
+| ADK | Runs the six-stage proof contract in one hosted model call; the full sequential-agent mode remains available |
 | Gemini | Synthesizes evidence, competes hypotheses, falsifies explanations, and produces typed decisions |
 | Connectors | Load source-labelled evidence without exposing credentials to prompts |
 | Pydantic schemas | Enforce Root Problem Record and intervention contracts |
@@ -29,7 +29,7 @@ flowchart TD
 
 ## Structured agent contract
 
-The model is not allowed to return an unstructured recommendation. The ADK sequence culminates in a Pydantic-validated `DiagnosticDecision` containing a `RootProblemRecord`, an `InterventionPlan`, the next decision gate, and a plain-language summary. `/v1/model` publishes the exact JSON schemas used by the application, and the Vercel interface renders the returned fields rather than replacing them with generated prose.
+The model is not allowed to return an unstructured recommendation. The hosted ADK agent applies all six proof gates and returns a Pydantic-validated `DiagnosticDecision` containing a `RootProblemRecord`, an `InterventionPlan`, the next decision gate, and a plain-language summary. Compact mode uses one model call for demo reliability; sequential mode retains the six specialized agents for deeper evaluation. `/v1/model` publishes the exact JSON schemas used by the application, and the Vercel interface renders the returned fields rather than replacing them with generated prose.
 
 ## Proof gate
 

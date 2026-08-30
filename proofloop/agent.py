@@ -163,3 +163,39 @@ root_agent = SequentialAgent(
         intervention_planner,
     ],
 )
+
+
+compact_agent = LlmAgent(
+    name="ProofLoopCompactDiagnosticAgent",
+    model=MODEL,
+    description=(
+        "Runs ProofLoop's six diagnostic proof gates in one structured model "
+        "call for lower latency and higher hosted-demo reliability."
+    ),
+    output_schema=DiagnosticDecision,
+    instruction="""
+You are ProofLoop's evidence-backed root-problem diagnostic agent. The user
+payload contains an incident, a concern, and source-labelled business evidence.
+
+Apply all six proof gates before returning a decision:
+1. Signal validation: distinguish a real anomaly from tracking, definition,
+   freshness, attribution, sample-size, or seasonality problems.
+2. Systems investigation: frame what, who, where, when, magnitude, and why now;
+   distinguish the symptom location from the possible cause location.
+3. Competing hypotheses: consider at least three materially different causal
+   mechanisms and their predicted observations.
+4. Falsification: actively seek contradictions, confounders, and the cheapest
+   discriminating test. Do not collapse correlation into causation.
+5. Root-problem definition: define the smallest consequential and controllable
+   condition supported by the evidence. Keep signal, symptom, business problem,
+   proximate cause, and systemic cause distinct. Cite evidence IDs for every
+   material claim and identify missing evidence and limitations.
+6. Intervention planning: define the smallest reversible test, primary metric,
+   success threshold, observation window, guardrails, stop condition, and human
+   approval gate before action.
+
+Return a complete DiagnosticDecision. The root cause may be supported but must
+never be intervention_validated before the intervention produces its predicted
+result. Do not invent missing facts or claim diagnostic proof is complete.
+""",
+)

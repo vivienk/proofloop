@@ -18,6 +18,11 @@ Agent API: https://proofloop-agent.onrender.com
 
 ## Diagnostic workflow
 
+The hosted demo runs these six proof gates in one schema-constrained ADK model
+call to reduce latency and exposure to transient provider-capacity errors. The
+full sequential six-agent implementation remains available with
+`PROOFLOOP_EXECUTION_MODE=sequential`.
+
 1. `SignalValidator` checks whether the anomaly is real.
 2. `SystemsInvestigator` frames the problem using adaptive 5W1H.
 3. `HypothesisBuilder` generates competing causal mechanisms.
@@ -58,6 +63,7 @@ Add a Gemini API key to `.env`. Never commit that file.
 GOOGLE_API_KEY=your-private-key
 GOOGLE_GENAI_USE_VERTEXAI=false
 PROOFLOOP_MODEL=gemini-3.6-flash
+PROOFLOOP_EXECUTION_MODE=compact
 PROOFLOOP_DEMO_MODE=true
 PROOFLOOP_DATA_MODE=demo
 PROOFLOOP_PERSISTENCE_MODE=none
@@ -132,7 +138,7 @@ Every push to `main` triggers a new Vercel production build and a Render backend
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Runtime, model, and mode check |
-| `GET` | `/v1/model` | Publish the six-stage workflow and typed JSON schemas |
+| `GET` | `/v1/model` | Publish the six-stage reasoning contract and typed JSON schemas |
 | `POST` | `/v1/diagnose` | Run the complete ADK diagnostic proof gate |
 | `POST` | `/v1/interventions/{run_id}/approve` | Record scoped human authorization |
 | `POST` | `/v1/interventions/{run_id}/evaluate` | Evaluate the locked intervention contract |
