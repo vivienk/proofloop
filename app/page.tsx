@@ -205,7 +205,9 @@ const runSteps = [
   "Defining the root problem",
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_PROOFLOOP_API_URL?.replace(/\/$/, "");
+const API_URL = (
+  process.env.NEXT_PUBLIC_PROOFLOOP_API_URL ?? "https://proofloop-agent.onrender.com"
+).replace(/\/$/, "");
 
 function MiniTrend({ recovered = false }: { recovered?: boolean }) {
   return (

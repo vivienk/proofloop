@@ -20,4 +20,4 @@ services:
       - key: PROOFLOOP_DEMO_MODE
         value: "false"
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://proofloop-flywheel.vercel.app

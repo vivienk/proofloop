@@ -30,6 +30,11 @@ The demo begins with paid clicks increasing 22.4% while purchase conversion fall
 - FastAPI and Pydantic
 - Google Ads and Looker connector scaffolding
 
+## Live application
+
+- Web app: https://proofloop-flywheel.vercel.app
+- Agent API: https://proofloop-agent.onrender.com
+
 ## Four-minute demo sequence
 
 ### 0:00–0:30 — Problem

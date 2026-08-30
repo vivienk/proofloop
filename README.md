@@ -2,7 +2,9 @@
 
 ProofLoop is a self-improving business diagnostic agent for founders and small teams. It turns an observed business anomaly into an evidence-backed root-problem record, proposes a bounded intervention, verifies the outcome, and stores a reusable operating rule.
 
-Frontend: deployed on Vercel from the repository root.
+Frontend: https://proofloop-flywheel.vercel.app
+
+Agent API: https://proofloop-agent.onrender.com
 
 ## Hackathon stack
 
@@ -99,7 +101,7 @@ curl -X POST http://127.0.0.1:8080/v1/interventions/RUN_ID/evaluate
 
 - `GOOGLE_API_KEY`: the Gemini API key
 - `GOOGLE_SERVICE_ACCOUNT_JSON_B64`: a base64-encoded credential for the `proofloop-runner` service account
-- `ALLOWED_ORIGINS`: the exact Vercel production origin, without a trailing slash
+- `ALLOWED_ORIGINS`: `https://proofloop-flywheel.vercel.app` (already defined in `render.yaml`)
 
 The remaining runtime values are defined in `render.yaml`. Never commit either credential. The service-account key should retain only the already-granted `roles/datastore.user` permission and should be rotated after the hackathon.
 
@@ -108,7 +110,7 @@ The remaining runtime values are defined in `render.yaml`. Never commit either c
 The repository root is a standard Next.js project. Import `vivienk/proofloop` into Vercel with the Root Directory left blank and Framework Preset set to Next.js. Add these environment variables in Vercel:
 
 ```env
-NEXT_PUBLIC_SITE_URL=https://YOUR_VERCEL_DOMAIN
+NEXT_PUBLIC_SITE_URL=https://proofloop-flywheel.vercel.app
 NEXT_PUBLIC_PROOFLOOP_API_URL=https://proofloop-agent.onrender.com
 ```
 

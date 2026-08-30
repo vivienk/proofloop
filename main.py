@@ -23,6 +23,9 @@ from proofloop.schemas import DiagnosticDecision, RootProblemRecord
 
 APP_NAME = "proofloop"
 MODEL_VERSION = "proofloop-root-problem-v1"
+DEFAULT_ALLOWED_ORIGINS = (
+    "http://localhost:3000,https://proofloop-flywheel.vercel.app"
+)
 AGENT_STAGES = [
     "signal_validation",
     "systems_investigation",
@@ -43,11 +46,12 @@ app = FastAPI(
     version="0.1.0",
     description="Evidence-backed business diagnosis powered by Gemini and ADK.",
 )
+configured_origins = os.getenv("ALLOWED_ORIGINS") or DEFAULT_ALLOWED_ORIGINS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         origin.strip()
-        for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+        for origin in configured_origins.split(",")
         if origin.strip()
     ],
     allow_credentials=False,
@@ -103,6 +107,17 @@ async def _persist(collection: str, document_id: str, payload: dict[str, Any]) -
     if client is None:
         return
     await client.collection(collection).document(document_id).set(payload, merge=True)
+
+
+@app.get("/")
+async def service_index() -> dict[str, Any]:
+    return {
+        "service": "ProofLoop Agent API",
+        "status": "ok",
+        "model_version": MODEL_VERSION,
+        "endpoints": ["/health", "/v1/model", "/v1/diagnose"],
+        "web_app": "https://proofloop-flywheel.vercel.app",
+    }
 
 
 @app.get("/health")
