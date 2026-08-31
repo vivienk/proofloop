@@ -55,9 +55,10 @@ function reorderPrioritySources(grid: HTMLElement) {
   const googleAds = byName("Google Ads");
   const ga4 = byName("GA4");
 
-  if (strategy && googleAds && ga4) {
-    strategy.after(googleAds, ga4);
-  }
+  if (!strategy || !googleAds || !ga4) return;
+
+  const alreadyOrdered = strategy.nextElementSibling === googleAds && googleAds.nextElementSibling === ga4;
+  if (!alreadyOrdered) strategy.after(googleAds, ga4);
 }
 
 function syncSourceLibrary() {
@@ -87,10 +88,10 @@ function syncSourceLibrary() {
 
     if (badge) {
       if (isWebsite && websiteIsConnected()) {
-        badge.style.display = "inline-flex";
-        badge.textContent = "Connected";
-        badge.classList.add("mint-badge");
-      } else {
+        if (badge.style.display !== "inline-flex") badge.style.display = "inline-flex";
+        if (badge.textContent?.trim() !== "Connected") badge.textContent = "Connected";
+        if (!badge.classList.contains("mint-badge")) badge.classList.add("mint-badge");
+      } else if (badge.style.display !== "none") {
         badge.style.display = "none";
       }
     }
@@ -98,12 +99,14 @@ function syncSourceLibrary() {
     const action = card.querySelector<HTMLButtonElement>(":scope > button");
     if (!action) return;
 
-    action.disabled = false;
-    action.classList.add("source-action-button");
-    action.setAttribute("aria-label", domain === "business" ? `Upload ${name}` : `Connect ${name}`);
+    if (action.disabled) action.disabled = false;
+    if (!action.classList.contains("source-action-button")) action.classList.add("source-action-button");
+
+    const desiredLabel = domain === "business" ? `Upload ${name}` : `Connect ${name}`;
+    if (action.getAttribute("aria-label") !== desiredLabel) action.setAttribute("aria-label", desiredLabel);
 
     if (domain === "business") {
-      action.textContent = "Upload";
+      if (action.textContent?.trim() !== "Upload") action.textContent = "Upload";
       if (!action.dataset.proofloopUploadAction) {
         action.dataset.proofloopUploadAction = "true";
         action.addEventListener("click", (event) => {
@@ -112,7 +115,7 @@ function syncSourceLibrary() {
           uploadInput?.click();
         }, true);
       }
-    } else {
+    } else if (action.textContent?.trim() !== "Connect") {
       action.textContent = "Connect";
     }
   });
