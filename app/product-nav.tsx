@@ -5,7 +5,6 @@ import {
   BookOpenCheck,
   BrainCircuit,
   ChevronDown,
-  GitBranch,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -200,7 +199,9 @@ export function ProductNav({
     <>
       <aside className="product-left-rail">
         <button className="product-brand" type="button" onClick={() => onNavigate("overview")}>
-          <span className="product-brand-mark"><GitBranch /></span>
+          <span className="product-brand-mark product-brand-mark-image">
+            <img src="/proofloop-brand-mark.svg" alt="ProofLoop" width="40" height="40" />
+          </span>
           <span><strong>ProofLoop</strong><em>Business diagnostic OS</em></span>
         </button>
 
@@ -282,7 +283,7 @@ export function ProductNav({
                 type="button"
                 className="google-signin-button"
                 disabled={!firebaseConfigured}
-                onClick={() => void signIn()}
+                onClick={() => void signIn())}
               >
                 <span>G</span><strong>Continue with Google</strong><LogIn />
               </button>
