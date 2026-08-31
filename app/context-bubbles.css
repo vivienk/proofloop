@@ -1,0 +1,60 @@
+.bubble-context-analysis {
+  grid-column: 2;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(117, 104, 216, 0.14);
+  border-radius: 10px;
+  background: rgba(117, 104, 216, 0.055);
+}
+
+.bubble-context-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7568d8;
+}
+
+.bubble-context-items {
+  display: grid;
+  gap: 5px;
+}
+
+.bubble-context-items > div {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.bubble-context-items span {
+  font-size: 10px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #777e91;
+}
+
+.bubble-context-items p {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #555c70;
+}
+
+html[data-theme="dark"] .bubble-context-analysis {
+  background: rgba(189, 222, 195, 0.055);
+  border-color: rgba(189, 222, 195, 0.12);
+}
+
+html[data-theme="dark"] .bubble-context-label {
+  color: #bddec3;
+}
+
+html[data-theme="dark"] .bubble-context-items span {
+  color: rgba(255,255,255,.46);
+}
+
+html[data-theme="dark"] .bubble-context-items p {
+  color: rgba(255,255,255,.7);
+}
