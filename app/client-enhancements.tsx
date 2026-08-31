@@ -34,6 +34,73 @@ function syncForensicsIntro() {
   }
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function sectionText(selector: string) {
+  return document.querySelector<HTMLElement>(selector)?.innerText?.trim() ?? "";
+}
+
+function downloadOverviewReport() {
+  const businessName = document.querySelector<HTMLElement>(".overview-heading h1")?.textContent?.trim()
+    || northstarData.business_name
+    || "Business";
+  const generatedAt = new Date().toLocaleString();
+  const sections = [
+    ["Overview metrics", sectionText(".overview-stat-grid")],
+    ["Historical causal timeline", sectionText(".history-card")],
+    ["Priority investigations", sectionText(".priority-card")],
+    ["Economic engine", sectionText(".engine-overview-card")],
+    ["Business Context Gate", sectionText(".readiness-card")],
+    ["Framework Router", sectionText(".framework-card")],
+  ] as Array<[string, string]>;
+
+  const body = sections
+    .filter(([, value]) => value)
+    .map(([title, value]) => `<section><h2>${escapeHtml(title)}</h2><div>${escapeHtml(value).replaceAll("\n", "<br>")}</div></section>`)
+    .join("");
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(businessName)} · ProofLoop Report</title><style>body{font-family:Inter,Arial,sans-serif;background:#f7f7fb;color:#202536;margin:0;padding:40px}.report{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e8e8ef;border-radius:18px;padding:36px}header{padding-bottom:22px;border-bottom:1px solid #ececf2}header span{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#7568d8}h1{margin:8px 0 4px;font-size:32px}header p{margin:0;color:#73798b}section{padding:22px 0;border-bottom:1px solid #eeeeF4}section:last-child{border-bottom:0}h2{font-size:18px;margin:0 0 12px}section div{line-height:1.65;color:#43495a}@media(max-width:640px){body{padding:14px}.report{padding:22px}}</style></head><body><main class="report"><header><span>ProofLoop standardized analysis report</span><h1>${escapeHtml(businessName)}</h1><p>Generated ${escapeHtml(generatedAt)}</p></header>${body}</main></body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "business"}-proofloop-report.html`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function syncOverviewReportButton() {
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>(".overview-actions button"))
+    .find((item) => /add my business|download report/i.test(item.textContent ?? ""));
+  if (!button) return;
+
+  if (!button.dataset.proofloopDownloadReport) {
+    button.dataset.proofloopDownloadReport = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      downloadOverviewReport();
+    }, true);
+  }
+
+  if (button.textContent?.trim() !== "Download report") {
+    button.replaceChildren(document.createTextNode("Download report"));
+  }
+  if (button.getAttribute("aria-label") !== "Download ProofLoop analysis report") {
+    button.setAttribute("aria-label", "Download ProofLoop analysis report");
+  }
+}
+
 function contextForBubble(bubble: HTMLElement) {
   const isUser = bubble.classList.contains("user");
   const text = bubble.querySelector("p")?.textContent?.trim() ?? "";
@@ -133,6 +200,7 @@ export function ClientEnhancements() {
     const attach = () => {
       syncBusinessNameHeadline();
       syncForensicsIntro();
+      syncOverviewReportButton();
 
       const tabs = document.querySelector<HTMLElement>(".assistant-tabs");
       if (!tabs) return;
