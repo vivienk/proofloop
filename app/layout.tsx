@@ -4,6 +4,7 @@ import "./globals.css";
 import "./enhancements.css";
 import "./chat-solid-light.css";
 import "./context-bubbles.css";
+import "./workspace-rail.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 const inter = Inter({
