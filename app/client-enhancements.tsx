@@ -23,11 +23,14 @@ function syncBusinessNameHeadline() {
 function syncForensicsIntro() {
   const heading = document.querySelector<HTMLElement>(".forensics-heading h1");
   const description = document.querySelector<HTMLElement>(".forensics-heading p");
-  if (heading && heading.textContent?.trim() !== "Show ProofLoop where your business lives.") {
-    heading.textContent = "Show ProofLoop where your business lives.";
+  const desiredHeading = "Connect, upload, or talk through the current state of your business.";
+  const desiredDescription = "The agent reconstructs the graph and asks only what matters next.";
+
+  if (heading && heading.textContent?.trim() !== desiredHeading) {
+    heading.textContent = desiredHeading;
   }
-  if (description && description.textContent?.trim() !== "The agent reconstructs the graph and asks only what matters next.") {
-    description.textContent = "The agent reconstructs the graph and asks only what matters next.";
+  if (description && description.textContent?.trim() !== desiredDescription) {
+    description.textContent = desiredDescription;
   }
 }
 
