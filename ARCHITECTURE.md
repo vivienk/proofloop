@@ -1,4 +1,4 @@
-# ProofLoop business-context and investigation-graph architecture
+# ProofLoop context and investigation-graph architecture
 
 ProofLoop is an autonomous what-to-do-next investigation engine. It does not stop at
 finding an anomaly or producing advice. It maintains a falsifiable investigation
