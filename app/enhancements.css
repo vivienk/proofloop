@@ -1,0 +1,156 @@
+.assistant-tabs.has-enhanced-toggle > button {
+  display: none !important;
+}
+
+.agent-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-mode-toggle button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.58;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: 160ms ease;
+}
+
+.agent-mode-toggle button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-mode-toggle button.active {
+  opacity: 1;
+  background: rgba(189, 222, 195, 0.16);
+  color: #bddec3;
+  box-shadow: inset 0 0 0 1px rgba(189, 222, 195, 0.18);
+}
+
+.agent-trace-mount:empty {
+  display: none;
+}
+
+.agent-decision-trace {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  overflow: hidden;
+}
+
+.agent-decision-trace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.agent-decision-trace-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-decision-trace-heading em {
+  font-size: 10px;
+  font-style: normal;
+  opacity: 0.48;
+}
+
+.agent-decision-trace-list {
+  display: grid;
+  gap: 0;
+}
+
+.agent-decision-trace-list article {
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  gap: 9px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.agent-decision-trace-list article:last-child {
+  border-bottom: 0;
+}
+
+.agent-decision-trace-list article > span {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: rgba(189, 222, 195, 0.12);
+  color: #bddec3;
+  display: grid;
+  place-items: center;
+}
+
+.agent-decision-trace-list article > span svg {
+  width: 12px;
+  height: 12px;
+}
+
+.agent-decision-trace-list strong,
+.agent-decision-trace-list p {
+  display: block;
+}
+
+.agent-decision-trace-list strong {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.agent-decision-trace-list p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.68;
+}
+
+/* The next question belongs in the chat flow, not permanently above the composer. */
+.next-question {
+  display: none !important;
+}
+
+/* Keep overview/status tags consistently pill-shaped. */
+.overview-stat-grid [data-slot="badge"],
+.severity-pill,
+.status-badge,
+.mint-badge,
+.coral-badge,
+.demo-badge,
+.coming-badge {
+  min-height: 24px !important;
+  height: 24px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.overview-stat-grid [data-slot="badge"] svg,
+.severity-pill svg,
+.status-badge svg {
+  flex: 0 0 auto;
+}
