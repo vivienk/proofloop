@@ -10,6 +10,7 @@ import "./investigation-agent.css";
 import "./logo-override.css";
 import "./logo-mark-fix.css";
 import { ClientEnhancements } from "./client-enhancements";
+import { HistoryTimelineBridge } from "./history-timeline-bridge";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         {children}
         <ClientEnhancements />
+        <HistoryTimelineBridge />
       </body>
     </html>
   );
