@@ -1,6 +1,6 @@
 # ProofLoop business-context and investigation-graph architecture
 
-ProofLoop is an autonomous business investigation engine. It does not stop at
+ProofLoop is an autonomous what-to-do-next investigation engine. It does not stop at
 finding an anomaly or producing advice. It maintains a falsifiable investigation
 until programmatic checks turn every required unit GREEN, then passes a separate
 risk gate, verifies the result, and turns the outcome into a constraint that
@@ -9,7 +9,7 @@ changes future investigations.
 The investigation graph is preceded by a **Business Context Engine**. ProofLoop
 first reconstructs how the business creates value, earns revenue, operates, and
 normally behaves. This keeps the diagnostic agent from treating an isolated
-metric, a generic benchmark, or the founder's first interpretation as ground
+metric, a generic benchmark, or the solopreneur's first interpretation as ground
 truth.
 
 ## Product topology
