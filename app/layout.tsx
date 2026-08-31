@@ -5,6 +5,7 @@ import "./enhancements.css";
 import "./chat-solid-light.css";
 import "./context-bubbles.css";
 import "./workspace-rail.css";
+import "./investigation-light.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 const inter = Inter({
