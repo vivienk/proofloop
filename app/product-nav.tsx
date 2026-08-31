@@ -283,7 +283,7 @@ export function ProductNav({
                 type="button"
                 className="google-signin-button"
                 disabled={!firebaseConfigured}
-                onClick={() => void signIn())}
+                onClick={() => void signIn()}
               >
                 <span>G</span><strong>Continue with Google</strong><LogIn />
               </button>
