@@ -8,10 +8,12 @@ import "./workspace-rail.css";
 import "./investigation-light.css";
 import "./source-library-actions.css";
 import "./workspace-session.css";
+import "./define-assessment.css";
 import { ClientEnhancements } from "./client-enhancements";
 import { SourceLibraryEnhancements } from "./source-library-enhancements";
 import { ReportButton } from "./report-button";
 import { WorkspaceSessionEnhancements } from "./workspace-session-enhancements";
+import { DefineAssessmentEnhancements } from "./define-assessment-enhancements";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,6 +52,7 @@ export default function RootLayout({
         <ClientEnhancements />
         <SourceLibraryEnhancements />
         <WorkspaceSessionEnhancements />
+        <DefineAssessmentEnhancements />
         <ReportButton />
       </body>
     </html>
