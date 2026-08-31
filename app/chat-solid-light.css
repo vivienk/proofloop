@@ -1,0 +1,40 @@
+/* Keep the light-mode chat workspace solid and distinct from the surrounding glass UI. */
+html[data-theme="light"] .context-assistant {
+  background: #f7f7fb !important;
+  color: #202536 !important;
+  border-left: 1px solid rgba(91, 101, 140, 0.14) !important;
+  box-shadow: -14px 0 38px rgba(77, 86, 130, 0.06) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"] .assistant-content,
+html[data-theme="light"] .chat-stream {
+  background: #f7f7fb !important;
+}
+
+html[data-theme="light"] .assistant-panel-bar {
+  background: #f7f7fb !important;
+  border-bottom-color: rgba(91, 101, 140, 0.14) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Controls can retain subtle elevation, but not translucent panel bleed-through. */
+html[data-theme="light"] .chat-composer,
+html[data-theme="light"] .agent-mode-toggle,
+html[data-theme="light"] .agent-decision-trace,
+html[data-theme="light"] .signin-inline,
+html[data-theme="light"] .assistant-panel-controls button {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"] .chat-bubble.assistant > div {
+  background: #ffffff !important;
+}
+
+html[data-theme="light"] .chat-bubble.user > div {
+  background: #eceafd !important;
+}
