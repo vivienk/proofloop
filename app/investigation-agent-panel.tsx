@@ -1,7 +1,19 @@
 "use client";
 
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { BrainCircuit, History, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Send, Sparkles } from "lucide-react";
+import {
+  Bot,
+  History,
+  Maximize2,
+  Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
+  Paperclip,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRoundCheck,
+} from "lucide-react";
 
 type InvestigationChatMessage = {
   role: "assistant" | "user";
@@ -26,14 +38,17 @@ export function InvestigationAgentPanel() {
   ]);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  const contextMessage = useMemo(() => {
-    if (mode === "proofloop") return null;
-    return {
-      role: "assistant" as const,
-      text: "Context view shows the high-level reasoning contract: what evidence was considered, what was ruled in or out, and which decision gate comes next.",
-      meta: "Inspectable rationale · not private chain-of-thought",
-    };
-  }, [mode]);
+  const visibleMessages = useMemo(() => {
+    if (mode === "proofloop") return messages;
+    return [
+      ...messages,
+      {
+        role: "assistant" as const,
+        text: "Context view shows the inspectable reasoning contract: which evidence was considered, which explanations were ruled in or out, and which decision gate comes next.",
+        meta: "Inspectable rationale · not private chain-of-thought",
+      },
+    ];
+  }, [messages, mode]);
 
   function sendMessage() {
     const message = value.trim();
@@ -43,7 +58,7 @@ export function InvestigationAgentPanel() {
       { role: "user", text: message },
       {
         role: "assistant",
-        text: "I’ve added that as investigation context. Run or re-run the AI diagnosis to have Gemini incorporate it into the structured evidence record.",
+        text: "I’ve added that as investigation context. Re-run the diagnosis when you want Gemini to incorporate it into the structured evidence record.",
         meta: "Founder-provided investigation context",
       },
     ]);
@@ -58,72 +73,74 @@ export function InvestigationAgentPanel() {
     }
   }
 
-  if (panelMode === "collapsed") {
-    return (
-      <aside className="investigation-agent is-collapsed" aria-label="ProofLoop investigation agent">
-        <button type="button" aria-label="Open investigation agent" onClick={() => setPanelMode("docked")}>
-          <PanelRightOpen />
-          <span>Agent</span>
-        </button>
-      </aside>
-    );
-  }
-
   return (
-    <aside className={`investigation-agent is-${panelMode}`} aria-label="ProofLoop investigation agent">
-      <div className="investigation-agent-bar">
-        <div><span><Sparkles /></span><strong>ProofLoop agent</strong></div>
-        <div>
-          <button
-            type="button"
-            aria-label={panelMode === "expanded" ? "Restore agent width" : "Expand agent"}
-            onClick={() => setPanelMode((current) => current === "expanded" ? "docked" : "expanded")}
-          >
-            {panelMode === "expanded" ? <Minimize2 /> : <Maximize2 />}
-          </button>
-          <button type="button" aria-label="Collapse agent" onClick={() => setPanelMode("collapsed")}><PanelRightClose /></button>
+    <aside className={`context-assistant investigation-context-assistant is-${panelMode}`} aria-label="ProofLoop investigation agent">
+      <div className="assistant-panel-bar">
+        <div className="assistant-panel-identity">
+          <span className="assistant-orb"><Sparkles /></span>
+          <strong>ProofLoop agent</strong>
+        </div>
+        <div className="assistant-panel-controls">
+          {panelMode === "collapsed" ? (
+            <button type="button" aria-label="Open agent" onClick={() => setPanelMode("docked")}><PanelRightOpen /></button>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label={panelMode === "expanded" ? "Restore agent width" : "Expand agent"}
+                onClick={() => setPanelMode((current) => current === "expanded" ? "docked" : "expanded")}
+              >
+                {panelMode === "expanded" ? <Minimize2 /> : <Maximize2 />}
+              </button>
+              <button type="button" aria-label="Collapse agent" onClick={() => setPanelMode("collapsed")}><PanelRightClose /></button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="investigation-agent-content">
-        <div className="investigation-agent-hero">
-          <span>Investigation copilot</span>
-          <h2>What should we investigate next?</h2>
-          <p>Challenge the diagnosis, add evidence, or inspect why ProofLoop selected a lens.</p>
-        </div>
+      {panelMode !== "collapsed" && (
+        <div className="assistant-content">
+          <div className="assistant-hero">
+            <span>Investigation agent</span>
+            <h2>What should we investigate next?</h2>
+            <p>Challenge the diagnosis, add evidence, or inspect why ProofLoop selected a lens.</p>
+          </div>
 
-        <div className="investigation-agent-tabs" role="group" aria-label="Agent view">
-          <button type="button" className={mode === "proofloop" ? "active" : ""} onClick={() => setMode("proofloop")}><BrainCircuit /> ProofLoop</button>
-          <button type="button" className={mode === "context" ? "active" : ""} onClick={() => setMode("context")}><History /> Context</button>
-        </div>
+          <div className="assistant-tabs">
+            <button className={mode === "proofloop" ? "active" : ""} type="button" onClick={() => setMode("proofloop")}><Bot /> ProofLoop</button>
+            <button className={mode === "context" ? "active" : ""} type="button" onClick={() => setMode("context")}><History /> Context</button>
+          </div>
 
-        <div className="investigation-chat-stream">
-          {(contextMessage ? [...messages, contextMessage] : messages).map((message, index) => (
-            <div key={`${message.role}-${index}-${message.text.slice(0, 16)}`} className={`investigation-chat-bubble ${message.role}`}>
-              <span>{message.role === "assistant" ? <Sparkles /> : <strong>Y</strong>}</span>
-              <div><p>{message.text}</p>{message.meta && <em>{message.meta}</em>}</div>
+          <div className="chat-stream">
+            {visibleMessages.map((message, index) => (
+              <div key={`${message.role}-${index}-${message.text.slice(0, 18)}`} className={`chat-bubble ${message.role}`}>
+                <span>{message.role === "assistant" ? <Sparkles /> : <UserRoundCheck />}</span>
+                <div><p>{message.text}</p>{message.meta && <em>{message.meta}</em>}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="chat-composer">
+            <textarea
+              ref={composerRef}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                event.target.style.height = "auto";
+                event.target.style.height = `${Math.min(event.target.scrollHeight, 168)}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about evidence, hypotheses, or next action…"
+              rows={1}
+            />
+            <div>
+              <button type="button" aria-label="Attach evidence"><Paperclip /></button>
+              <button type="button" className="send" aria-label="Send message" disabled={!value.trim()} onClick={sendMessage}><Send /></button>
             </div>
-          ))}
+          </div>
+          <div className="assistant-trust"><ShieldCheck /> Evidence selects the lens · Gemini + Google ADK</div>
         </div>
-
-        <div className="investigation-composer">
-          <textarea
-            ref={composerRef}
-            value={value}
-            rows={1}
-            placeholder="Ask about evidence, hypotheses, or next action…"
-            onChange={(event) => {
-              setValue(event.target.value);
-              event.target.style.height = "auto";
-              event.target.style.height = `${Math.min(event.target.scrollHeight, 160)}px`;
-            }}
-            onKeyDown={handleKeyDown}
-          />
-          <button type="button" aria-label="Send message" disabled={!value.trim()} onClick={sendMessage}><Send /></button>
-        </div>
-
-        <div className="investigation-agent-trust">Evidence selects the lens · Gemini + Google ADK</div>
-      </div>
+      )}
     </aside>
   );
 }
