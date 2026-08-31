@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Sparkles } from "lucide-react";
 
 const PENDING_CLASS = "proofloop-pending-business-session";
 const PRIOR_BUBBLE_CLASS = "prior-business-session";
