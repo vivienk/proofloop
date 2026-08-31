@@ -1,0 +1,68 @@
+/* Investigation light-mode corrections. Dark mode remains unchanged. */
+html[data-theme="light"] .investigation-stage-nav button.is-current {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #202536 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(81, 89, 130, 0.06) !important;
+}
+
+html[data-theme="light"] .investigation-stage-nav button.is-current span {
+  background: rgba(117, 104, 216, 0.12) !important;
+  color: #6258ad !important;
+  border-color: rgba(117, 104, 216, 0.14) !important;
+}
+
+html[data-theme="light"] .investigation-stage-nav button.is-current strong,
+html[data-theme="light"] .investigation-stage-nav button.is-current em {
+  color: #202536 !important;
+}
+
+html[data-theme="light"] .evidence-tabs [data-slot="tabs-trigger"][data-state="active"],
+html[data-theme="light"] .evidence-tabs [role="tab"][data-state="active"] {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #202536 !important;
+  border-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .root-statement,
+html[data-theme="light"] .evaluation-card,
+html[data-theme="light"] .learning-hero {
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #202536 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 18px 48px rgba(81, 89, 130, 0.055) !important;
+}
+
+html[data-theme="light"] .root-statement .statement-kicker,
+html[data-theme="light"] .evaluation-card .evaluation-kicker,
+html[data-theme="light"] .learning-hero > span {
+  color: #6258ad !important;
+}
+
+html[data-theme="light"] .root-statement p,
+html[data-theme="light"] .root-statement strong,
+html[data-theme="light"] .evaluation-card h3,
+html[data-theme="light"] .evaluation-card p,
+html[data-theme="light"] .learning-hero h3,
+html[data-theme="light"] .learning-hero p {
+  color: #202536 !important;
+}
+
+html[data-theme="light"] .root-meta,
+html[data-theme="light"] .evaluation-checks,
+html[data-theme="light"] .learning-evidence {
+  border-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html[data-theme="light"] .root-meta span,
+html[data-theme="light"] .evaluation-checks,
+html[data-theme="light"] .learning-evidence {
+  color: #6f7689 !important;
+}
+
+html[data-theme="light"] .learning-mark {
+  background: rgba(117, 104, 216, 0.12) !important;
+  color: #6258ad !important;
+  border-color: #ffffff !important;
+}
