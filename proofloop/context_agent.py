@@ -25,7 +25,6 @@ business_context_agent = LlmAgent(
     output_key="business_context_decision",
     generate_content_config=types.GenerateContentConfig(
         response_mime_type="application/json",
-        temperature=0.1,
     ),
     instruction=f"""
 You are ProofLoop's Business Context Engine. Build context from evidence rather
