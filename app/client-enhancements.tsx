@@ -58,8 +58,16 @@ function reportSection(title: string, content: string) {
   return `<section><h2>${escapeHtml(title)}</h2><div class="report-copy">${escapeHtml(content).replaceAll("\n", "<br>")}</div></section>`;
 }
 
+type ReportConflict = {
+  topic: string;
+  preferred_claim: string;
+  alternative_claim: string;
+  selection_reason: string;
+};
+
 function buildNorthstarStructuredReport() {
   const context = northstarData;
+  const conflicts = context.conflicts as ReportConflict[];
   const rows = (items: Array<[string, string]>) => items.map(([label, value]) => `<div class="row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
 
   return `
@@ -87,7 +95,7 @@ function buildNorthstarStructuredReport() {
     <section><h2>Metrics and baselines</h2>${context.metrics.map((metric) => `<article><strong>${escapeHtml(metric.label)}: ${metric.current_value} ${escapeHtml(metric.unit)}</strong><p>Baseline ${escapeHtml(metric.baseline_level)} · ${escapeHtml(metric.standard_type)} · ${escapeHtml(metric.standard_basis)}</p><small>Trend: ${escapeHtml(metric.trend)} · Volatility: ${escapeHtml(metric.volatility)} · Seasonality: ${escapeHtml(metric.seasonality)} · Sources: ${escapeHtml(metric.source_ids.join(", "))}</small></article>`).join("")}</section>
     <section><h2>Historical timeline</h2>${context.timeline_events.map((event) => `<article><strong>${escapeHtml(event.date)} · ${escapeHtml(event.title)}</strong><p>${escapeHtml(event.description)}</p><small>${escapeHtml(event.before_after)} · Leads: ${escapeHtml(event.ranked_investigation_leads.join(" · "))}</small></article>`).join("")}</section>
     <section><h2>Selected frameworks</h2>${context.selected_frameworks.map((framework) => `<article><strong>${escapeHtml(framework.framework)}</strong><p>${escapeHtml(framework.purpose)}</p><small>Triggered by: ${escapeHtml(framework.trigger_evidence_ids.join(" · "))}<br>Excluded alternatives: ${escapeHtml(framework.excluded_alternatives.join(" · ") || "None")}</small></article>`).join("")}</section>
-    <section><h2>Conflicts and limitations</h2>${context.conflicts.map((conflict) => `<article><strong>${escapeHtml(conflict.topic)}</strong><p>${escapeHtml(conflict.preferred_claim)} ↔ ${escapeHtml(conflict.alternative_claim)}</p><small>${escapeHtml(conflict.selection_reason)}</small></article>`).join("")}${context.limitations.map((limitation) => `<p>• ${escapeHtml(limitation)}</p>`).join("")}</section>
+    <section><h2>Conflicts and limitations</h2>${conflicts.map((conflict) => `<article><strong>${escapeHtml(conflict.topic)}</strong><p>${escapeHtml(conflict.preferred_claim)} ↔ ${escapeHtml(conflict.alternative_claim)}</p><small>${escapeHtml(conflict.selection_reason)}</small></article>`).join("")}${context.limitations.map((limitation) => `<p>• ${escapeHtml(limitation)}</p>`).join("")}</section>
     <section><h2>Raw Business Context Graph</h2><pre>${escapeHtml(JSON.stringify(context, null, 2))}</pre></section>
   `;
 }
