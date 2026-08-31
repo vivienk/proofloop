@@ -1,0 +1,52 @@
+/* Compact business history stack in the left rail. */
+.rail-workspace-stack {
+  gap: 6px !important;
+}
+
+.rail-workspace-card {
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 7px 10px !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  grid-template-rows: auto auto !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  row-gap: 1px !important;
+  text-align: left !important;
+}
+
+.rail-workspace-card .rail-workspace-status {
+  grid-column: 1 / -1;
+  font-size: 9px !important;
+  line-height: 1 !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase;
+  opacity: .62;
+}
+
+.rail-workspace-card > strong {
+  grid-column: 1 / -1;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-workspace-card.is-history-business {
+  opacity: .68;
+  cursor: default !important;
+}
+
+.rail-workspace-card.is-active-business {
+  opacity: 1;
+}
+
+.rail-workspace-card.is-active-business .rail-workspace-status i {
+  opacity: 1;
+}
+
+.rail-workspace-card.is-history-business .rail-workspace-status i {
+  opacity: .35;
+}
