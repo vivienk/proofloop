@@ -29,6 +29,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { InvestigationAgentPanel } from "@/app/investigation-agent-panel";
 import {
   firebaseConfigured,
   signInToProofLoop,
@@ -110,6 +111,8 @@ export function ProductNav({
   const [businesses, setBusinesses] = useState<RailBusiness[]>([{ name: "Northstar Studio", addedAt: 0 }]);
   const [activeBusiness, setActiveBusiness] = useState("Northstar Studio");
   const [businessToRemove, setBusinessToRemove] = useState<string | null>(null);
+
+  void userLabel;
 
   useEffect(() => watchProofLoopUser(setUser), []);
 
@@ -314,6 +317,8 @@ export function ProductNav({
           </button>
         </div>
       </header>
+
+      {active === "investigations" && <InvestigationAgentPanel />}
 
       <AlertDialog open={Boolean(businessToRemove)} onOpenChange={(open) => !open && setBusinessToRemove(null)}>
         <AlertDialogContent>
