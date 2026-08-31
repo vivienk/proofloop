@@ -201,9 +201,9 @@ compact_agent = LlmAgent(
         "Runs ProofLoop's six diagnostic proof gates in one structured model "
         "call for lower latency and higher hosted-demo reliability."
     ),
+    output_schema=DiagnosticDecision,
     generate_content_config=types.GenerateContentConfig(
         response_mime_type="application/json",
-        temperature=0.1,
     ),
     instruction=f"""
 You are ProofLoop's evidence-backed root-problem diagnostic agent. The user
