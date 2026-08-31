@@ -1,0 +1,139 @@
+/* Keep the Northstar historical causal timeline visible in both themes. */
+.history-card {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 0;
+  overflow: visible !important;
+}
+
+.history-card .card-heading-row {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+.history-card .timeline-chart {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 420px !important;
+  overflow: visible !important;
+}
+
+.history-card .metric-lanes {
+  display: grid !important;
+  gap: 10px !important;
+  min-height: 300px !important;
+}
+
+.history-card .metric-lane {
+  display: grid !important;
+  grid-template-columns: minmax(120px, 180px) minmax(260px, 1fr) auto !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 68px !important;
+  visibility: visible !important;
+}
+
+.history-card .metric-lane svg {
+  display: block !important;
+  width: 100% !important;
+  min-width: 260px !important;
+  height: 74px !important;
+  overflow: visible !important;
+}
+
+.history-card .metric-lane svg line {
+  stroke: rgba(91, 101, 140, 0.18) !important;
+  stroke-width: 1 !important;
+}
+
+.history-card .metric-lane svg path {
+  fill: none !important;
+  stroke: #6d61b5 !important;
+  stroke-width: 2.5 !important;
+  vector-effect: non-scaling-stroke;
+}
+
+.history-card .metric-lane svg circle {
+  fill: #ffffff !important;
+  stroke: #6d61b5 !important;
+  stroke-width: 2 !important;
+  vector-effect: non-scaling-stroke;
+}
+
+.history-card .event-rail {
+  display: grid !important;
+  grid-template-columns: 120px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  min-height: 86px !important;
+  margin-top: 12px !important;
+  overflow: visible !important;
+}
+
+.history-card .event-track {
+  display: block !important;
+  position: relative !important;
+  min-height: 76px !important;
+  overflow: visible !important;
+}
+
+.history-card .event-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 25px;
+  height: 1px;
+  background: rgba(91, 101, 140, 0.2);
+}
+
+.history-card .event-track > button {
+  display: grid !important;
+  position: absolute !important;
+  top: 0 !important;
+  transform: translateX(-50%) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 2;
+}
+
+.history-card .event-detail {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin-top: 16px !important;
+}
+
+.history-card .timeline-table-wrap,
+.history-card .timeline-table {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] .history-card .metric-lane svg line {
+  stroke: rgba(255,255,255,.16) !important;
+}
+html[data-theme="dark"] .history-card .metric-lane svg path,
+html[data-theme="dark"] .history-card .metric-lane svg circle {
+  stroke: #bddec3 !important;
+}
+html[data-theme="dark"] .history-card .metric-lane svg circle {
+  fill: #111218 !important;
+}
+html[data-theme="dark"] .history-card .event-track::before {
+  background: rgba(255,255,255,.15);
+}
+
+@media (max-width: 900px) {
+  .history-card .metric-lane {
+    grid-template-columns: 1fr !important;
+  }
+  .history-card .metric-lane svg {
+    min-width: 0 !important;
+  }
+  .history-card .event-rail {
+    grid-template-columns: 1fr !important;
+  }
+}
