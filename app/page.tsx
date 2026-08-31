@@ -47,6 +47,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BusinessContextWorkspace } from "@/app/business-context-workspace";
+import { DefineAssessment } from "@/app/define-assessment";
 import { ProductNav, type ProductView } from "@/app/product-nav";
 
 type Stage = "detect" | "investigate" | "define" | "act" | "measure" | "learn";
@@ -868,6 +869,12 @@ export default function Home() {
                   <ShieldCheck /> {diagnostic?.decision.investigation ? humanize(diagnostic.decision.investigation.termination_state) : rootProblem ? humanize(rootProblem.status) : "Supported"} · {diagnostic?.decision.investigation?.proof_gate_passed === false ? "needs evidence" : "ready to test"}
                 </Badge>
               </div>
+
+              <DefineAssessment
+                problemGate={diagnostic?.decision.problem_gate}
+                rootProblem={rootProblem}
+                graphUnits={graphUnits}
+              />
 
               <div className="root-layout">
                 <article className="root-statement">
