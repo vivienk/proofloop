@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./enhancements.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 export const dynamic = "force-dynamic";
