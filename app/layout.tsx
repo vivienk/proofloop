@@ -7,6 +7,7 @@ import "./context-bubbles.css";
 import "./workspace-rail.css";
 import "./investigation-light.css";
 import "./investigation-agent.css";
+import "./accent-cyan.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 const inter = Inter({
