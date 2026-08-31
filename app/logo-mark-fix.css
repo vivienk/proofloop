@@ -1,0 +1,19 @@
+.product-brand-mark.product-brand-mark-image {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.product-brand-mark.product-brand-mark-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
