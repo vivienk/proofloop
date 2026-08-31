@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bot, GitBranch, History, Sparkles } from "lucide-react";
+import northstarData from "@/data/business-context-northstar.json";
 
 type TraceItem = {
   title: string;
@@ -18,6 +19,21 @@ function collectTrace(): { messages: string[]; question: string } {
   return { messages, question };
 }
 
+function syncBusinessNameHeadline() {
+  const headline = document.querySelector<HTMLElement>(".overview-heading h1");
+  if (!headline) return;
+
+  const reconstructedMessage = Array.from(document.querySelectorAll(".chat-bubble.assistant p"))
+    .map((node) => node.textContent?.trim() ?? "")
+    .find((text) => /^I reconstructed .+ from /i.test(text));
+  const reconstructedName = reconstructedMessage?.match(/^I reconstructed (.+?) from /i)?.[1]?.trim();
+  const isPersonalWorkspace = Array.from(document.querySelectorAll("[data-slot='badge']"))
+    .some((node) => node.textContent?.trim() === "Personal workspace");
+
+  const businessName = reconstructedName || (isPersonalWorkspace ? "My business" : northstarData.business_name);
+  if (businessName && headline.textContent?.trim() !== businessName) headline.textContent = businessName;
+}
+
 export function ClientEnhancements() {
   const [mode, setMode] = useState<"proofloop" | "context">("proofloop");
   const [tabsMount, setTabsMount] = useState<HTMLElement | null>(null);
@@ -28,6 +44,8 @@ export function ClientEnhancements() {
 
   useEffect(() => {
     const attach = () => {
+      syncBusinessNameHeadline();
+
       const tabs = document.querySelector<HTMLElement>(".assistant-tabs");
       const content = document.querySelector<HTMLElement>(".assistant-content");
       if (!tabs || !content) return;
@@ -53,7 +71,7 @@ export function ClientEnhancements() {
 
     attach();
     const observer = new MutationObserver(() => attach());
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
   }, []);
 
