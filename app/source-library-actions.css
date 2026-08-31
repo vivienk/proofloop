@@ -1,0 +1,29 @@
+.source-grid article > [data-slot="badge"] {
+  display: none !important;
+}
+
+.source-grid article > .source-action-button {
+  min-width: 72px !important;
+  width: auto !important;
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+html[data-theme="light"] .source-grid article > .source-action-button {
+  background: #ffffff !important;
+  color: #202536 !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 8px 20px rgba(81, 89, 130, 0.06) !important;
+}
+
+html[data-theme="light"] .source-grid article > .source-action-button:hover {
+  background: #f6f3ff !important;
+}
