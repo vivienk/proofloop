@@ -20,6 +20,17 @@ function syncBusinessNameHeadline() {
   if (businessName && headline.textContent?.trim() !== businessName) headline.textContent = businessName;
 }
 
+function syncForensicsIntro() {
+  const heading = document.querySelector<HTMLElement>(".forensics-heading h1");
+  const description = document.querySelector<HTMLElement>(".forensics-heading p");
+  if (heading && heading.textContent?.trim() !== "Show ProofLoop where your business lives.") {
+    heading.textContent = "Show ProofLoop where your business lives.";
+  }
+  if (description && description.textContent?.trim() !== "The agent reconstructs the graph and asks only what matters next.") {
+    description.textContent = "The agent reconstructs the graph and asks only what matters next.";
+  }
+}
+
 function contextForBubble(bubble: HTMLElement) {
   const isUser = bubble.classList.contains("user");
   const text = bubble.querySelector("p")?.textContent?.trim() ?? "";
@@ -118,6 +129,7 @@ export function ClientEnhancements() {
   useEffect(() => {
     const attach = () => {
       syncBusinessNameHeadline();
+      syncForensicsIntro();
 
       const tabs = document.querySelector<HTMLElement>(".assistant-tabs");
       if (!tabs) return;
