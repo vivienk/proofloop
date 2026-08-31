@@ -3,6 +3,14 @@
   gap: 6px !important;
 }
 
+.rail-workspace-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 4px;
+  align-items: center;
+}
+
 .rail-workspace-card {
   min-height: 44px !important;
   height: 44px !important;
@@ -14,6 +22,7 @@
   column-gap: 8px !important;
   row-gap: 1px !important;
   text-align: left !important;
+  min-width: 0;
 }
 
 .rail-workspace-card .rail-workspace-status {
@@ -49,4 +58,39 @@
 
 .rail-workspace-card.is-history-business .rail-workspace-status i {
   opacity: .35;
+}
+
+.rail-workspace-remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: currentColor;
+  opacity: .42;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: 140ms ease;
+}
+
+.rail-workspace-remove svg {
+  width: 13px;
+  height: 13px;
+}
+
+.rail-workspace-remove:hover,
+.rail-workspace-remove:focus-visible {
+  opacity: 1;
+  background: rgba(219, 90, 67, .08);
+  border-color: rgba(219, 90, 67, .18);
+  color: #b84a38;
+}
+
+html[data-theme="dark"] .rail-workspace-remove:hover,
+html[data-theme="dark"] .rail-workspace-remove:focus-visible {
+  background: rgba(255, 118, 96, .12);
+  border-color: rgba(255, 118, 96, .2);
+  color: #ff8a76;
 }
