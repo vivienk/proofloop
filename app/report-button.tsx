@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 function findOriginalReportButton() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>(".overview-actions button"))
-    .find((button) => /add my business|download report/i.test(button.textContent ?? ""));
+    .find((button) => !button.classList.contains("proofloop-download-report") && /add my business|download report/i.test(button.textContent ?? ""));
 }
 
 export function ReportButton() {
