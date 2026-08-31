@@ -5,12 +5,6 @@ import { createPortal } from "react-dom";
 import { Bot, History } from "lucide-react";
 import northstarData from "@/data/business-context-northstar.json";
 
-let websiteReviewPending = false;
-let websiteReviewAssistantCount = 0;
-let rememberedWebsiteUrl = "";
-let optimisticUserMessage = "";
-let pendingEvidencePicker = false;
-
 function syncBusinessNameHeadline() {
   const headline = document.querySelector<HTMLElement>(".overview-heading h1");
   if (!headline) return;
@@ -32,8 +26,12 @@ function syncForensicsIntro() {
   const desiredHeading = "Connect, upload, or talk through the current state of your business.";
   const desiredDescription = "The agent reconstructs the graph and asks only what matters next.";
 
-  if (heading && heading.textContent?.trim() !== desiredHeading) heading.textContent = desiredHeading;
-  if (description && description.textContent?.trim() !== desiredDescription) description.textContent = desiredDescription;
+  if (heading && heading.textContent?.trim() !== desiredHeading) {
+    heading.textContent = desiredHeading;
+  }
+  if (description && description.textContent?.trim() !== desiredDescription) {
+    description.textContent = desiredDescription;
+  }
 }
 
 function escapeHtml(value: string) {
@@ -95,166 +93,12 @@ function syncOverviewReportButton() {
     }, true);
   }
 
-  if (button.textContent?.trim() !== "Download report") button.replaceChildren(document.createTextNode("Download report"));
-  if (button.getAttribute("aria-label") !== "Download ProofLoop analysis report") button.setAttribute("aria-label", "Download ProofLoop analysis report");
-}
-
-function sourceCardName(card: HTMLElement) {
-  return card.querySelector<HTMLElement>("strong")?.textContent?.trim() ?? "";
-}
-
-function websiteReviewSucceeded() {
-  if (!websiteReviewPending) return false;
-  const assistantMessages = Array.from(document.querySelectorAll<HTMLElement>(".chat-bubble.assistant"));
-  if (assistantMessages.length <= websiteReviewAssistantCount) return false;
-  if (document.querySelector(".request-error")) return false;
-  websiteReviewPending = false;
-  return true;
-}
-
-function syncEvidenceLibrary() {
-  const websiteInput = document.querySelector<HTMLInputElement>(".website-card input");
-  const reviewButton = document.querySelector<HTMLButtonElement>(".website-card button");
-
-  if (reviewButton && !reviewButton.dataset.proofloopWebsiteReview) {
-    reviewButton.dataset.proofloopWebsiteReview = "true";
-    reviewButton.addEventListener("click", () => {
-      const url = websiteInput?.value.trim() ?? "";
-      if (!url) return;
-      rememberedWebsiteUrl = url;
-      websiteReviewPending = true;
-      websiteReviewAssistantCount = document.querySelectorAll(".chat-bubble.assistant").length;
-    }, true);
+  if (button.textContent?.trim() !== "Download report") {
+    button.replaceChildren(document.createTextNode("Download report"));
   }
-
-  if (websiteReviewSucceeded()) {
-    window.localStorage.setItem("proofloop-reviewed-website-url", rememberedWebsiteUrl);
+  if (button.getAttribute("aria-label") !== "Download ProofLoop analysis report") {
+    button.setAttribute("aria-label", "Download ProofLoop analysis report");
   }
-
-  const savedUrl = rememberedWebsiteUrl || window.localStorage.getItem("proofloop-reviewed-website-url") || "";
-  if (websiteInput && savedUrl && websiteInput.value !== savedUrl) {
-    websiteInput.value = savedUrl;
-    websiteInput.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  document.querySelectorAll<HTMLElement>(".source-grid > article").forEach((card) => {
-    const name = sourceCardName(card);
-    const badge = card.querySelector<HTMLElement>("[data-slot='badge']");
-    const action = card.querySelector<HTMLButtonElement>(":scope > button");
-    const isWebsite = name.toLowerCase() === "website";
-    const websiteConnected = isWebsite && Boolean(window.localStorage.getItem("proofloop-reviewed-website-url"));
-    const alreadyConnected = badge?.textContent?.trim() === "Connected";
-    const connected = websiteConnected || alreadyConnected;
-
-    if (badge) {
-      if (connected) {
-        if (badge.textContent?.trim() !== "Connected") badge.textContent = "Connected";
-        if (!badge.classList.contains("mint-badge")) badge.classList.add("mint-badge");
-        if (badge.style.display !== "inline-flex") badge.style.display = "inline-flex";
-      } else if (badge.style.display !== "none") {
-        badge.style.display = "none";
-      }
-    }
-
-    if (!action) return;
-    if (connected) {
-      if (action.style.display !== "none") action.style.display = "none";
-      return;
-    }
-    if (action.style.display === "none") action.style.display = "inline-flex";
-    if (action.disabled) action.disabled = false;
-    if (!action.classList.contains("source-connect-cta")) action.classList.add("source-connect-cta");
-    if (action.textContent?.trim() !== "Connect") action.textContent = "Connect";
-    const ariaLabel = `Connect ${name}`;
-    if (action.getAttribute("aria-label") !== ariaLabel) action.setAttribute("aria-label", ariaLabel);
-  });
-}
-
-function findEvidenceInput() {
-  return document.querySelector<HTMLInputElement>(".drop-zone input[type='file']");
-}
-
-function openEvidencePicker() {
-  const input = findEvidenceInput();
-  if (input) {
-    pendingEvidencePicker = false;
-    input.click();
-    return;
-  }
-
-  pendingEvidencePicker = true;
-  const evidenceStep = Array.from(document.querySelectorAll<HTMLButtonElement>(".journey-stepper button"))
-    .find((button) => button.querySelector("em")?.textContent?.trim().toLowerCase() === "evidence");
-  evidenceStep?.click();
-}
-
-function syncAttachmentButtons() {
-  document.querySelectorAll<HTMLButtonElement>(".chat-composer button[aria-label='Attach evidence']").forEach((button) => {
-    if (button.dataset.proofloopAttachment) return;
-    button.dataset.proofloopAttachment = "true";
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      openEvidencePicker();
-    });
-  });
-
-  if (pendingEvidencePicker) {
-    const input = findEvidenceInput();
-    if (input) {
-      pendingEvidencePicker = false;
-      window.setTimeout(() => input.click(), 0);
-    }
-  }
-}
-
-function syncHistoryUploadButton() {
-  const activeStep = document.querySelector<HTMLElement>(".journey-stepper button.active em")?.textContent?.trim().toLowerCase();
-  const historyStage = activeStep === "history" ? document.querySelector<HTMLElement>(".forensics-stage") : null;
-  if (!historyStage) return;
-  const title = historyStage.querySelector<HTMLElement>(".stage-title");
-  if (!title || title.querySelector(".history-upload-evidence")) return;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "history-upload-evidence";
-  button.textContent = "Upload evidence";
-  button.setAttribute("aria-label", "Upload evidence for history reconstruction");
-  button.addEventListener("click", openEvidencePicker);
-  title.appendChild(button);
-}
-
-function syncOptimisticMessage() {
-  const stream = document.querySelector<HTMLElement>(".context-assistant .chat-stream");
-  if (!stream) return;
-
-  if (optimisticUserMessage) {
-    const realMatch = Array.from(stream.querySelectorAll<HTMLElement>(".chat-bubble.user p"))
-      .some((node) => node.textContent?.trim() === optimisticUserMessage);
-    if (realMatch) optimisticUserMessage = "";
-  }
-
-  const existing = stream.querySelector<HTMLElement>(".optimistic-user-bubble");
-  if (!optimisticUserMessage) {
-    existing?.remove();
-    return;
-  }
-
-  if (existing) {
-    const paragraph = existing.querySelector("p");
-    if (paragraph && paragraph.textContent !== optimisticUserMessage) paragraph.textContent = optimisticUserMessage;
-    return;
-  }
-
-  const bubble = document.createElement("div");
-  bubble.className = "chat-bubble user optimistic-user-bubble";
-  const icon = document.createElement("span");
-  icon.textContent = "●";
-  const copy = document.createElement("div");
-  const paragraph = document.createElement("p");
-  paragraph.textContent = optimisticUserMessage;
-  copy.appendChild(paragraph);
-  bubble.append(icon, copy);
-  stream.appendChild(bubble);
 }
 
 function contextForBubble(bubble: HTMLElement) {
@@ -331,7 +175,7 @@ function syncBubbleContext(enabled: boolean) {
     return;
   }
 
-  document.querySelectorAll<HTMLElement>(".chat-bubble:not(.optimistic-user-bubble)").forEach((bubble) => {
+  document.querySelectorAll<HTMLElement>(".chat-bubble").forEach((bubble) => {
     if (bubble.querySelector(":scope > .bubble-context-analysis")) return;
 
     const context = contextForBubble(bubble);
@@ -353,24 +197,10 @@ export function ClientEnhancements() {
   const lastTabs = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLTextAreaElement | null;
-      if (!target?.closest(".context-assistant .chat-composer")) return;
-      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
-      const message = target.value.trim();
-      if (!message) return;
-      optimisticUserMessage = message;
-      window.setTimeout(syncOptimisticMessage, 0);
-    };
-
     const attach = () => {
       syncBusinessNameHeadline();
       syncForensicsIntro();
       syncOverviewReportButton();
-      syncEvidenceLibrary();
-      syncAttachmentButtons();
-      syncHistoryUploadButton();
-      syncOptimisticMessage();
 
       const tabs = document.querySelector<HTMLElement>(".assistant-tabs");
       if (!tabs) return;
@@ -382,15 +212,12 @@ export function ClientEnhancements() {
       syncBubbleContext(mode === "context");
     };
 
-    document.addEventListener("keydown", handleKeyDown, true);
     attach();
     const observer = new MutationObserver(() => attach());
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
       observer.disconnect();
       removeBubbleContext();
-      document.querySelector(".optimistic-user-bubble")?.remove();
     };
   }, [mode]);
 
