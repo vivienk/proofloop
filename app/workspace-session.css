@@ -1,0 +1,20 @@
+.proofloop-original-report-action {
+  display: none !important;
+}
+
+.pending-business-row {
+  display: none !important;
+}
+
+body.proofloop-pending-business-session .prior-business-session {
+  display: none !important;
+}
+
+.new-business-session-welcome {
+  margin-bottom: 4px;
+}
+
+.proofloop-download-report svg {
+  width: 16px;
+  height: 16px;
+}
