@@ -4,6 +4,295 @@ body * {
   font-family: var(--font-inter), Inter, sans-serif !important;
 }
 
+/* Light glass visual system */
+:root,
+html[data-theme="light"],
+html[data-theme="dark"] {
+  --glass-ink: #202536;
+  --glass-muted: #6f7689;
+  --glass-line: rgba(91, 101, 140, 0.14);
+  --glass-line-strong: rgba(91, 101, 140, 0.2);
+  --glass-surface: rgba(255, 255, 255, 0.62);
+  --glass-surface-strong: rgba(255, 255, 255, 0.78);
+  --glass-purple: #7568d8;
+  --glass-purple-soft: rgba(117, 104, 216, 0.12);
+  --glass-blue-soft: rgba(123, 169, 238, 0.12);
+  --glass-green: #5e9875;
+  --glass-green-soft: rgba(127, 194, 150, 0.15);
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(199, 215, 255, 0.42), transparent 31%),
+    radial-gradient(circle at 82% 18%, rgba(223, 203, 255, 0.42), transparent 33%),
+    radial-gradient(circle at 62% 88%, rgba(207, 231, 255, 0.34), transparent 36%),
+    linear-gradient(135deg, #f9f9fd 0%, #f4f5fb 50%, #fbf9ff 100%) !important;
+  color: var(--glass-ink) !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(115deg, rgba(255,255,255,.24), rgba(255,255,255,0));
+}
+
+/* Navigation becomes translucent light glass instead of a dark rail. */
+.product-left-rail {
+  background: linear-gradient(180deg, rgba(246, 248, 255, 0.78), rgba(238, 241, 252, 0.58)) !important;
+  color: var(--glass-ink) !important;
+  border-right: 1px solid rgba(103, 111, 151, 0.13) !important;
+  box-shadow: 16px 0 44px rgba(77, 86, 130, 0.08) !important;
+  backdrop-filter: blur(28px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(145%) !important;
+}
+
+.product-brand,
+.product-left-rail nav button,
+.rail-workspace-card,
+.rail-add-business,
+.google-account-button,
+.google-signin-button {
+  color: var(--glass-ink) !important;
+}
+
+.product-brand em,
+.product-rail-kicker,
+.rail-workspace-card em,
+.product-left-rail nav button > span,
+.google-account-button em,
+.product-rail-footer,
+.product-section-title span {
+  color: var(--glass-muted) !important;
+}
+
+.product-brand-mark {
+  color: var(--glass-purple) !important;
+  background: rgba(255, 255, 255, 0.56) !important;
+  border-color: rgba(117, 104, 216, 0.18) !important;
+  box-shadow: 0 8px 22px rgba(93, 81, 177, 0.09) !important;
+}
+
+.rail-workspace-card,
+.rail-add-business,
+.google-account-button,
+.google-signin-button,
+.account-popover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid var(--glass-line) !important;
+  box-shadow: 0 12px 30px rgba(79, 88, 130, 0.055) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+}
+
+.product-left-rail nav button {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.product-left-rail nav button:hover {
+  background: rgba(255, 255, 255, 0.48) !important;
+  border-color: rgba(117, 104, 216, 0.08) !important;
+}
+
+.product-left-rail nav button.active {
+  background: linear-gradient(100deg, rgba(255,255,255,.82), rgba(227,225,255,.62)) !important;
+  color: #373354 !important;
+  border-color: rgba(117, 104, 216, 0.14) !important;
+  box-shadow: 0 10px 24px rgba(99, 88, 181, 0.09) !important;
+}
+
+.product-left-rail nav button.active svg,
+.product-left-rail nav button.active > span {
+  color: var(--glass-purple) !important;
+}
+
+.product-left-rail nav button.active i,
+.rail-workspace-status i {
+  background: #91c996 !important;
+  box-shadow: 0 0 0 4px rgba(145, 201, 150, 0.12) !important;
+}
+
+.product-nav {
+  background: rgba(255, 255, 255, 0.46) !important;
+  border-bottom: 1px solid var(--glass-line) !important;
+  box-shadow: 0 10px 32px rgba(77, 86, 130, 0.045) !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+}
+
+.model-chip,
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.58) !important;
+  color: var(--glass-ink) !important;
+  border-color: var(--glass-line) !important;
+  box-shadow: 0 6px 18px rgba(77, 86, 130, 0.045) !important;
+}
+
+/* Main content sits on the page rather than on an opaque slab. */
+.context-page,
+.context-main,
+.forensics-main,
+.proof-shell,
+.investigation-product-shell,
+.workbench {
+  background: transparent !important;
+}
+
+/* Shared glass card treatment. */
+.overview-stat-grid article,
+.history-card,
+.priority-card,
+.engine-overview-card,
+.readiness-card,
+.framework-card,
+.ledger-feature,
+.forensics-stage,
+.upload-card,
+.website-card,
+.source-library,
+.classification-grid article,
+.claim-review,
+.conflict-card,
+.engine-builder,
+.framework-router,
+.operations-grid article,
+.baseline-grid article,
+.readiness-summary,
+.readiness-checks,
+.scope-gates article,
+.metric-strip,
+.stage-panel,
+.agent-intake,
+.agent-run,
+.graph-unit,
+.graph-gate,
+.primary-signal,
+.validation-list {
+  background: var(--glass-surface) !important;
+  border-color: var(--glass-line) !important;
+  box-shadow: 0 18px 48px rgba(81, 89, 130, 0.065) !important;
+  backdrop-filter: blur(22px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(145%) !important;
+}
+
+.overview-stat-grid article:hover,
+.priority-item:hover,
+.source-grid article:hover {
+  background: rgba(255, 255, 255, 0.76) !important;
+  border-color: rgba(117, 104, 216, 0.16) !important;
+  box-shadow: 0 20px 46px rgba(83, 87, 139, 0.09) !important;
+}
+
+/* Gentle lavender accents echo the supplied dashboard reference. */
+.overview-stat-grid article:first-child,
+.metric-strip article:first-child {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(172, 157, 245, 0.28), transparent 45%),
+    linear-gradient(135deg, rgba(235, 240, 255, 0.76), rgba(255,255,255,0.58)) !important;
+}
+
+.mint-badge,
+.scope-pills em,
+.live-run-graph .green {
+  background: var(--glass-green-soft) !important;
+  color: #4e7e62 !important;
+  border-color: rgba(94, 152, 117, 0.18) !important;
+}
+
+.demo-badge,
+.model-chip,
+.page-eyebrow,
+.section-kicker {
+  color: #6258ad !important;
+}
+
+/* Agent panel: light glass, not dark. */
+.context-assistant {
+  background: linear-gradient(180deg, rgba(248, 249, 255, 0.74), rgba(242, 244, 252, 0.62)) !important;
+  color: var(--glass-ink) !important;
+  border-left: 1px solid var(--glass-line) !important;
+  box-shadow: -18px 0 50px rgba(77, 86, 130, 0.07) !important;
+  backdrop-filter: blur(30px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) !important;
+}
+
+.assistant-panel-bar {
+  background: rgba(255, 255, 255, 0.34) !important;
+  border-bottom-color: var(--glass-line) !important;
+}
+
+.assistant-panel-controls button,
+.signin-inline,
+.chat-composer,
+.agent-mode-toggle,
+.agent-decision-trace {
+  background: rgba(255, 255, 255, 0.56) !important;
+  color: var(--glass-ink) !important;
+  border-color: var(--glass-line) !important;
+  box-shadow: 0 12px 30px rgba(81, 89, 130, 0.05) !important;
+  backdrop-filter: blur(18px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+}
+
+.assistant-orb {
+  background: linear-gradient(135deg, rgba(117,104,216,.16), rgba(132,174,237,.18)) !important;
+  color: var(--glass-purple) !important;
+  border: 1px solid rgba(117, 104, 216, 0.16) !important;
+}
+
+.assistant-hero span,
+.assistant-hero p,
+.assistant-trust,
+.chat-bubble em,
+.agent-decision-trace-heading em {
+  color: var(--glass-muted) !important;
+}
+
+.chat-stream {
+  background: transparent !important;
+}
+
+.chat-bubble.assistant,
+.chat-bubble.user {
+  color: var(--glass-ink) !important;
+}
+
+.chat-bubble.assistant > div {
+  background: rgba(255, 255, 255, 0.56) !important;
+  border: 1px solid rgba(91, 101, 140, 0.11) !important;
+  box-shadow: 0 10px 28px rgba(78, 87, 130, 0.045) !important;
+}
+
+.chat-bubble.user > div {
+  background: linear-gradient(135deg, rgba(231, 229, 255, 0.82), rgba(237, 243, 255, 0.76)) !important;
+  border: 1px solid rgba(117, 104, 216, 0.12) !important;
+  box-shadow: 0 10px 28px rgba(95, 82, 177, 0.055) !important;
+}
+
+.chat-composer textarea {
+  color: var(--glass-ink) !important;
+  caret-color: var(--glass-purple) !important;
+}
+
+.chat-composer textarea::placeholder {
+  color: #969cae !important;
+}
+
+.chat-composer button {
+  color: #70778b !important;
+}
+
+.chat-composer button.send {
+  background: linear-gradient(135deg, #7568d8, #8b7fe0) !important;
+  color: white !important;
+  box-shadow: 0 8px 20px rgba(117, 104, 216, 0.2) !important;
+}
+
+/* Convert the enhanced ProofLoop / Context control to the same light glass language. */
 .assistant-tabs.has-enhanced-toggle > button {
   display: none !important;
 }
@@ -14,9 +303,8 @@ body * {
   gap: 4px;
   width: 100%;
   padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-line) !important;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
 }
 
 .agent-mode-toggle button {
@@ -24,8 +312,8 @@ body * {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: inherit;
-  opacity: 0.58;
+  color: var(--glass-muted) !important;
+  opacity: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -42,9 +330,9 @@ body * {
 
 .agent-mode-toggle button.active {
   opacity: 1;
-  background: rgba(189, 222, 195, 0.16);
-  color: #bddec3;
-  box-shadow: inset 0 0 0 1px rgba(189, 222, 195, 0.18);
+  background: linear-gradient(135deg, rgba(226, 223, 255, 0.88), rgba(235, 241, 255, 0.84)) !important;
+  color: #5c51aa !important;
+  box-shadow: inset 0 0 0 1px rgba(117, 104, 216, 0.12), 0 5px 16px rgba(117,104,216,.07) !important;
 }
 
 .agent-trace-mount:empty {
@@ -53,9 +341,8 @@ body * {
 
 .agent-decision-trace {
   margin-top: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-line) !important;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
   overflow: hidden;
 }
 
@@ -65,7 +352,7 @@ body * {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--glass-line) !important;
 }
 
 .agent-decision-trace-heading span {
@@ -79,7 +366,7 @@ body * {
 .agent-decision-trace-heading em {
   font-size: 10px;
   font-style: normal;
-  opacity: 0.48;
+  opacity: 1;
 }
 
 .agent-decision-trace-list {
@@ -92,7 +379,7 @@ body * {
   grid-template-columns: 25px 1fr;
   gap: 9px;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(91, 101, 140, 0.09) !important;
 }
 
 .agent-decision-trace-list article:last-child {
@@ -103,8 +390,8 @@ body * {
   width: 25px;
   height: 25px;
   border-radius: 50%;
-  background: rgba(189, 222, 195, 0.12);
-  color: #bddec3;
+  background: var(--glass-purple-soft) !important;
+  color: var(--glass-purple) !important;
   display: grid;
   place-items: center;
 }
@@ -128,7 +415,8 @@ body * {
   margin: 3px 0 0;
   font-size: 11px;
   line-height: 1.45;
-  opacity: 0.68;
+  color: var(--glass-muted) !important;
+  opacity: 1;
 }
 
 /* The next question belongs in the chat flow, not permanently above the composer. */
