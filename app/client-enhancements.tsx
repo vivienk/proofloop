@@ -1,23 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bot, GitBranch, History, Sparkles } from "lucide-react";
+import { Bot, History } from "lucide-react";
 import northstarData from "@/data/business-context-northstar.json";
-
-type TraceItem = {
-  title: string;
-  detail: string;
-};
-
-function collectTrace(): { messages: string[]; question: string } {
-  if (typeof document === "undefined") return { messages: [], question: "" };
-  const messages = Array.from(document.querySelectorAll(".chat-bubble.assistant p"))
-    .map((node) => node.textContent?.trim() ?? "")
-    .filter(Boolean);
-  const question = document.querySelector(".next-question strong")?.textContent?.trim() ?? "";
-  return { messages, question };
-}
 
 function syncBusinessNameHeadline() {
   const headline = document.querySelector<HTMLElement>(".overview-heading h1");
@@ -34,112 +20,146 @@ function syncBusinessNameHeadline() {
   if (businessName && headline.textContent?.trim() !== businessName) headline.textContent = businessName;
 }
 
+function contextForBubble(bubble: HTMLElement) {
+  const isUser = bubble.classList.contains("user");
+  const text = bubble.querySelector("p")?.textContent?.trim() ?? "";
+  const meta = bubble.querySelector("em")?.textContent?.trim() ?? "";
+
+  if (isUser) {
+    return {
+      label: "Analyzed context",
+      items: [
+        { key: "Signal", value: "Founder-provided input" },
+        { key: "Effect", value: "Used to update or challenge the current Business Context Graph" },
+      ],
+    };
+  }
+
+  if (/reconstructed/i.test(text)) {
+    return {
+      label: "Analyzed context",
+      items: [
+        { key: "Interpretation", value: "Business identity and model were reconstructed from the currently supplied evidence" },
+        { key: "Evidence state", value: meta || "Provisional until supported by source evidence or founder confirmation" },
+      ],
+    };
+  }
+
+  if (/reopened your saved Business Context Graph/i.test(text)) {
+    return {
+      label: "Analyzed context",
+      items: [
+        { key: "Source", value: "Previously persisted Business Context Graph" },
+        { key: "Effect", value: "Restored prior business memory before new evidence is applied" },
+      ],
+    };
+  }
+
+  if (/applied your claim decisions/i.test(text)) {
+    return {
+      label: "Analyzed context",
+      items: [
+        { key: "Action", value: "Founder confirmations/rejections were applied to material inferences" },
+        { key: "Effect", value: "Readiness and downstream routing were recomputed" },
+      ],
+    };
+  }
+
+  if (/prepared.+investigation candidate/i.test(text)) {
+    return {
+      label: "Analyzed context",
+      items: [
+        { key: "Status", value: "Investigation lead, not a verified cause" },
+        { key: "Next step", value: "Evidence gate must test the lead before intervention" },
+      ],
+    };
+  }
+
+  return {
+    label: "Analyzed context",
+    items: [
+      { key: "Role", value: "ProofLoop interpretation" },
+      { key: "Basis", value: meta || "Current conversation, workspace evidence, and Business Context Gate" },
+    ],
+  };
+}
+
+function removeBubbleContext() {
+  document.querySelectorAll(".bubble-context-analysis").forEach((node) => node.remove());
+}
+
+function syncBubbleContext(enabled: boolean) {
+  if (!enabled) {
+    removeBubbleContext();
+    return;
+  }
+
+  document.querySelectorAll<HTMLElement>(".chat-bubble").forEach((bubble) => {
+    if (bubble.querySelector(":scope > .bubble-context-analysis")) return;
+
+    const context = contextForBubble(bubble);
+    const annotation = document.createElement("div");
+    annotation.className = "bubble-context-analysis";
+    annotation.innerHTML = `
+      <div class="bubble-context-label">${context.label}</div>
+      <div class="bubble-context-items">
+        ${context.items.map((item) => `<div><span>${item.key}</span><p>${item.value}</p></div>`).join("")}
+      </div>
+    `;
+    bubble.appendChild(annotation);
+  });
+}
+
 export function ClientEnhancements() {
   const [mode, setMode] = useState<"proofloop" | "context">("proofloop");
   const [tabsMount, setTabsMount] = useState<HTMLElement | null>(null);
-  const [traceMount, setTraceMount] = useState<HTMLElement | null>(null);
-  const [traceRevision, setTraceRevision] = useState(0);
   const lastTabs = useRef<HTMLElement | null>(null);
-  const lastTraceMount = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const attach = () => {
       syncBusinessNameHeadline();
 
       const tabs = document.querySelector<HTMLElement>(".assistant-tabs");
-      const content = document.querySelector<HTMLElement>(".assistant-content");
-      if (!tabs || !content) return;
-
+      if (!tabs) return;
       tabs.classList.add("has-enhanced-toggle");
       if (tabs !== lastTabs.current) {
         lastTabs.current = tabs;
         setTabsMount(tabs);
       }
-
-      let mount = content.querySelector<HTMLElement>(".agent-trace-mount");
-      if (!mount) {
-        mount = document.createElement("div");
-        mount.className = "agent-trace-mount";
-        tabs.insertAdjacentElement("afterend", mount);
-      }
-      if (mount !== lastTraceMount.current) {
-        lastTraceMount.current = mount;
-        setTraceMount(mount);
-        setTraceRevision((value) => value + 1);
-      }
+      syncBubbleContext(mode === "context");
     };
 
     attach();
     const observer = new MutationObserver(() => attach());
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (mode !== "context") return;
-    const stream = document.querySelector(".chat-stream");
-    if (!stream) return;
-    const observer = new MutationObserver(() => setTraceRevision((value) => value + 1));
-    observer.observe(stream, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      removeBubbleContext();
+    };
   }, [mode]);
-
-  const trace = useMemo(() => {
-    void traceRevision;
-    return collectTrace();
-  }, [traceRevision, mode]);
-
-  const items: TraceItem[] = useMemo(() => {
-    const latest = trace.messages.at(-1);
-    const result: TraceItem[] = [];
-    if (latest) result.push({ title: "What the agent concluded", detail: latest });
-    result.push({
-      title: "What it used",
-      detail: "Workspace evidence, confirmed founder context, source provenance, readiness gates, and the current conversation. Claims remain provisional unless supported by evidence or founder confirmation.",
-    });
-    if (trace.question) {
-      result.push({
-        title: "Why this question is next",
-        detail: `ProofLoop selected “${trace.question}” because it is the highest-information unresolved input for the current Business Context Gate.`,
-      });
-    }
-    result.push({
-      title: "Architecture path",
-      detail: "Diagnoses use the ADK sequential workflow: validate signal → map systems → build competing hypotheses → falsify → define root problem → plan a bounded intervention.",
-    });
-    return result;
-  }, [trace]);
 
   return (
     <>
       {tabsMount && createPortal(
         <div className="agent-mode-toggle" role="group" aria-label="Agent view">
-          <button type="button" className={mode === "proofloop" ? "active" : ""} aria-pressed={mode === "proofloop"} onClick={() => setMode("proofloop")}>
+          <button
+            type="button"
+            className={mode === "proofloop" ? "active" : ""}
+            aria-pressed={mode === "proofloop"}
+            onClick={() => setMode("proofloop")}
+          >
             <Bot /> ProofLoop
           </button>
-          <button type="button" className={mode === "context" ? "active" : ""} aria-pressed={mode === "context"} onClick={() => { setMode("context"); setTraceRevision((value) => value + 1); }}>
+          <button
+            type="button"
+            className={mode === "context" ? "active" : ""}
+            aria-pressed={mode === "context"}
+            onClick={() => setMode("context")}
+          >
             <History /> Context
           </button>
         </div>,
         tabsMount,
-      )}
-
-      {traceMount && mode === "context" && createPortal(
-        <section className="agent-decision-trace" aria-label="Agent decision trace">
-          <div className="agent-decision-trace-heading">
-            <span><GitBranch /> Decision trace</span>
-            <em>Inspectable rationale, not hidden chain-of-thought</em>
-          </div>
-          <div className="agent-decision-trace-list">
-            {items.map((item) => (
-              <article key={item.title}>
-                <span><Sparkles /></span>
-                <div><strong>{item.title}</strong><p>{item.detail}</p></div>
-              </article>
-            ))}
-          </div>
-        </section>,
-        traceMount,
       )}
     </>
   );
