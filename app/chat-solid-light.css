@@ -37,4 +37,43 @@ html[data-theme="light"] .chat-bubble.assistant > div {
 
 html[data-theme="light"] .chat-bubble.user > div {
   background: #eceafd !important;
+  color: #111111 !important;
+}
+
+html[data-theme="light"] .chat-bubble.user p,
+html[data-theme="light"] .chat-bubble.user em {
+  color: #111111 !important;
+}
+
+.source-connect-cta,
+.history-upload-evidence {
+  min-width: 74px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 101, 140, 0.18);
+  background: #ffffff;
+  color: #202536;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-upload-evidence {
+  margin-left: auto;
+}
+
+html[data-theme="dark"] .source-connect-cta,
+html[data-theme="dark"] .history-upload-evidence {
+  background: rgba(255,255,255,0.06);
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.14);
+}
+
+.optimistic-user-bubble {
+  opacity: 1 !important;
 }
