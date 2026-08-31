@@ -6,12 +6,7 @@ import "./chat-solid-light.css";
 import "./context-bubbles.css";
 import "./workspace-rail.css";
 import "./investigation-light.css";
-import "./source-library-actions.css";
-import "./workspace-session.css";
 import { ClientEnhancements } from "./client-enhancements";
-import { SourceLibraryEnhancements } from "./source-library-enhancements";
-import { ReportButton } from "./report-button";
-import { WorkspaceSessionEnhancements } from "./workspace-session-enhancements";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,9 +43,6 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         {children}
         <ClientEnhancements />
-        <SourceLibraryEnhancements />
-        <WorkspaceSessionEnhancements />
-        <ReportButton />
       </body>
     </html>
   );
