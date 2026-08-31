@@ -143,9 +143,6 @@ export function ProductNav({
 
   useEffect(() => {
     setBusinesses(loadRailBusinesses());
-    onNavigate("forensics");
-  // The demo intentionally starts at Business Forensics once when the persistent nav mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
