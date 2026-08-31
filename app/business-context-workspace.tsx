@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
   CircleAlert,
   Database,
   ExternalLink,
+  Maximize2,
   FileChartColumn,
   FileText,
   GitBranch,
@@ -24,8 +25,11 @@ import {
   LoaderCircle,
   LockKeyhole,
   MessageCircleMore,
+  Minimize2,
   Network,
   Paperclip,
+  PanelRightClose,
+  PanelRightOpen,
   PlugZap,
   Search,
   Send,
@@ -45,7 +49,6 @@ import { Button } from "@/components/ui/button";
 import {
   firebaseConfigured,
   signInToProofLoop,
-  signOutOfProofLoop,
   watchProofLoopUser,
   type User,
 } from "@/lib/firebase";
@@ -367,36 +370,80 @@ function AssistantPanel({
   onSignIn: () => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const [panelMode, setPanelMode] = useState<"docked" | "expanded" | "collapsed">("docked");
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy]);
 
+  useEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    composer.style.height = "auto";
+    composer.style.height = `${Math.min(composer.scrollHeight, 168)}px`;
+  }, [value]);
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!busy && value.trim()) onSend();
+    }
+  }
+
   return (
-    <aside className="context-assistant">
-      <div className="assistant-hero">
-        <div className="assistant-orb"><Sparkles /></div>
-        <span>Business Forensics agent</span>
-        <h2>How can I help reconstruct your business?</h2>
-        <p>I ask one material question at a time and cite what changed in your context.</p>
+    <aside className={`context-assistant is-${panelMode}`} aria-label="ProofLoop agent">
+      <div className="assistant-panel-bar">
+        <div className="assistant-panel-identity"><span className="assistant-orb"><Sparkles /></span><strong>ProofLoop agent</strong></div>
+        <div className="assistant-panel-controls">
+          {panelMode === "collapsed" ? (
+            <button type="button" aria-label="Open agent" onClick={() => setPanelMode("docked")}><PanelRightOpen /></button>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label={panelMode === "expanded" ? "Restore agent width" : "Expand agent"}
+                onClick={() => setPanelMode((mode) => mode === "expanded" ? "docked" : "expanded")}
+              >
+                {panelMode === "expanded" ? <Minimize2 /> : <Maximize2 />}
+              </button>
+              <button type="button" aria-label="Collapse agent" onClick={() => setPanelMode("collapsed")}><PanelRightClose /></button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="assistant-tabs"><button className="active" type="button"><Bot /> ProofLoop</button><button type="button"><History /> Context</button></div>
-      <div className="chat-stream">
-        {messages.map((message, index) => (
-          <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-            <span>{message.role === "assistant" ? <Sparkles /> : <UserRoundCheck />}</span>
-            <div><p>{message.text}</p>{message.meta && <em>{message.meta}</em>}</div>
-          </div>
-        ))}
-        {busy && <div className="chat-bubble assistant"><span><LoaderCircle className="animate-spin" /></span><div><p>Reconstructing the evidence graph…</p></div></div>}
-        <div ref={endRef} />
+      <div className="assistant-content">
+        <div className="assistant-hero">
+          <span>Business Forensics agent</span>
+          <h2>How can I help reconstruct your business?</h2>
+          <p>I ask one material question at a time and cite what changed in your context.</p>
+        </div>
+        <div className="assistant-tabs"><button className="active" type="button"><Bot /> ProofLoop</button><button type="button"><History /> Context</button></div>
+        <div className="chat-stream">
+          {messages.map((message, index) => (
+            <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
+              <span>{message.role === "assistant" ? <Sparkles /> : <UserRoundCheck />}</span>
+              <div><p>{message.text}</p>{message.meta && <em>{message.meta}</em>}</div>
+            </div>
+          ))}
+          {busy && <div className="chat-bubble assistant"><span><LoaderCircle className="animate-spin" /></span><div><p>Reconstructing the evidence graph…</p></div></div>}
+          <div ref={endRef} />
+        </div>
+        <div className="next-question"><span>Highest-information question</span><strong>{question}</strong></div>
+        {!user && <button type="button" className="signin-inline" onClick={onSignIn}><LockKeyhole /> Sign in to save a personal workspace</button>}
+        <div className="chat-composer">
+          <textarea
+            ref={composerRef}
+            value={value}
+            onChange={(event) => onValue(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+            placeholder="Answer, correct an inference, or ask ProofLoop…"
+            rows={1}
+          />
+          <div><button type="button" aria-label="Attach evidence"><Paperclip /></button><button type="button" className="send" aria-label="Send message" disabled={busy || !value.trim()} onClick={onSend}><Send /></button></div>
+        </div>
+        <div className="assistant-trust"><ShieldCheck /> Claims remain provisional until evidence or founder confirmation supports them.</div>
       </div>
-      <div className="next-question"><span>Highest-information question</span><strong>{question}</strong></div>
-      {!user && <button type="button" className="signin-inline" onClick={onSignIn}><LockKeyhole /> Sign in to save a personal workspace</button>}
-      <div className="chat-composer">
-        <textarea value={value} onChange={(event) => onValue(event.target.value)} placeholder="Answer, correct an inference, or ask ProofLoop…" rows={3} />
-        <div><button type="button" aria-label="Attach evidence"><Paperclip /></button><button type="button" className="send" disabled={busy || !value.trim()} onClick={onSend}><Send /></button></div>
-      </div>
-      <div className="assistant-trust"><ShieldCheck /> Claims remain provisional until evidence or founder confirmation supports them.</div>
     </aside>
   );
 }
@@ -662,9 +709,7 @@ export function BusinessContextWorkspace({
       <section className="context-main forensics-main">
         <div className="forensics-heading">
           <div><span className="page-eyebrow"><Search /> Business Forensics</span><h1>Show ProofLoop where your business lives.</h1><p>Connect, upload, or talk through what exists. The agent reconstructs the graph and asks only what matters next.</p></div>
-          <div className="forensics-identity">
-            {user ? <><span className="user-avatar">{(user.displayName ?? user.email ?? "U").slice(0, 1)}</span><div><strong>{user.displayName ?? "Personal workspace"}</strong><em>Original files retained in this browser</em></div><button type="button" onClick={() => void signOutOfProofLoop()}>Sign out</button></> : <Button onClick={() => void signIn()}><LockKeyhole /> Continue with Google</Button>}
-          </div>
+          <Badge variant="outline" className={user ? "mint-badge" : "demo-badge"}>{user ? "Personal workspace" : "Demo workspace"}</Badge>
         </div>
 
         {!firebaseConfigured && <div className="configuration-note"><CircleAlert /><span><strong>Personal workspaces need Firebase configuration.</strong> The Northstar demo remains fully available. Add the four NEXT_PUBLIC_FIREBASE variables in Vercel to enable sign-in.</span></div>}

@@ -649,53 +649,6 @@ export default function Home() {
       onAddBusiness={() => setProductView("forensics")}
     />
     <main className="proof-shell investigation-product-shell">
-      <aside className="side-rail">
-        <div className="brand-lockup">
-          <div className="brand-mark"><GitBranch /></div>
-          <div>
-            <span className="brand-name">ProofLoop</span>
-            <span className="brand-edition">Business diagnostic agent</span>
-          </div>
-        </div>
-
-        <div className="workspace-switcher">
-          <div className="workspace-avatar">NS</div>
-          <div>
-            <strong>Northstar Studio</strong>
-            <span>Solo business · Growth</span>
-          </div>
-          <ChevronRight />
-        </div>
-
-        <nav className="side-nav" aria-label="Diagnostic stages">
-          <p className="nav-kicker">Active flywheel</p>
-          {stages.map((item, index) => {
-            const Icon = item.icon;
-            const isComplete = index < completedStage;
-            const isCurrent = item.id === stage;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={`stage-button ${isCurrent ? "is-current" : ""}`}
-                onClick={() => setStage(item.id)}
-              >
-                <span className={`stage-icon ${isComplete ? "is-complete" : ""}`}>
-                  {isComplete ? <Check /> : <Icon />}
-                </span>
-                <span>{item.label}</span>
-                {item.id === "define" && actionStatus === "ready" && <span className="stage-pulse" />}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="rail-footer">
-          <div className="connection-row"><span className="status-dot" /> 4 evidence sources live</div>
-          <div className="connection-row muted"><ShieldCheck /> Read-only data access</div>
-        </div>
-      </aside>
-
       <section className="workbench">
         <header className="topbar">
           <div>
@@ -709,6 +662,27 @@ export default function Home() {
             <span className="updated-label"><Clock3 /> Updated {lastUpdated}</span>
           </div>
         </header>
+
+        <nav className="investigation-stage-nav" aria-label="Diagnostic stages">
+          {stages.map((item, index) => {
+            const Icon = item.icon;
+            const isComplete = index < completedStage;
+            const isCurrent = item.id === stage;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`${isCurrent ? "is-current" : ""} ${isComplete ? "is-complete" : ""}`}
+                onClick={() => setStage(item.id)}
+              >
+                <span>{isComplete ? <Check /> : <Icon />}</span>
+                <strong>{String(index + 1).padStart(2, "0")}</strong>
+                <em>{item.label}</em>
+                {item.id === "define" && actionStatus === "ready" && <i />}
+              </button>
+            );
+          })}
+        </nav>
 
         <section className="agent-intake" aria-label="Start a structured business diagnosis">
           <label>
