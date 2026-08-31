@@ -15,8 +15,20 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  Trash2,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   firebaseConfigured,
   signInToProofLoop,
@@ -49,9 +61,10 @@ const RAIL_BUSINESSES_KEY = "proofloop-rail-businesses";
 function loadRailBusinesses(): RailBusiness[] {
   if (typeof window === "undefined") return [{ name: "Northstar Studio", addedAt: 0 }];
   try {
-    const stored = JSON.parse(window.localStorage.getItem(RAIL_BUSINESSES_KEY) ?? "[]") as RailBusiness[];
-    const valid = stored.filter((item) => typeof item?.name === "string" && item.name.trim());
-    return valid.length ? valid : [{ name: "Northstar Studio", addedAt: 0 }];
+    const raw = window.localStorage.getItem(RAIL_BUSINESSES_KEY);
+    if (raw === null) return [{ name: "Northstar Studio", addedAt: 0 }];
+    const stored = JSON.parse(raw) as RailBusiness[];
+    return stored.filter((item) => typeof item?.name === "string" && item.name.trim());
   } catch {
     return [{ name: "Northstar Studio", addedAt: 0 }];
   }
@@ -96,6 +109,7 @@ export function ProductNav({
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [businesses, setBusinesses] = useState<RailBusiness[]>([{ name: "Northstar Studio", addedAt: 0 }]);
   const [activeBusiness, setActiveBusiness] = useState("Northstar Studio");
+  const [businessToRemove, setBusinessToRemove] = useState<string | null>(null);
 
   useEffect(() => watchProofLoopUser(setUser), []);
 
@@ -161,6 +175,20 @@ export function ProductNav({
     setTheme(nextTheme);
   }
 
+  function removeBusiness(name: string) {
+    setBusinesses((current) => {
+      const next = current.filter((item) => item.name.toLowerCase() !== name.toLowerCase());
+      window.localStorage.setItem(RAIL_BUSINESSES_KEY, JSON.stringify(next));
+      if (activeBusiness.toLowerCase() === name.toLowerCase()) {
+        const fallback = next.at(-1)?.name ?? "";
+        setActiveBusiness(fallback);
+        onNavigate(fallback ? "overview" : "forensics");
+      }
+      return next;
+    });
+    setBusinessToRemove(null);
+  }
+
   const activeLabel = items.find((item) => item.id === active)?.label ?? "Overview";
   const accountName = user?.displayName ?? user?.email ?? "Google account";
   const accountInitial = accountName.slice(0, 1).toUpperCase();
@@ -177,16 +205,26 @@ export function ProductNav({
           {businesses.map((business) => {
             const isActive = business.name.toLowerCase() === activeBusiness.toLowerCase();
             return (
-              <button
-                type="button"
-                key={business.name}
-                className={`rail-workspace-card ${isActive ? "is-active-business" : "is-history-business"}`}
-                onClick={() => isActive && onNavigate("overview")}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <span className="rail-workspace-status"><i /> {isActive ? "Active" : "Previous"}</span>
-                <strong>{business.name}</strong>
-              </button>
+              <div className="rail-workspace-row" key={business.name}>
+                <button
+                  type="button"
+                  className={`rail-workspace-card ${isActive ? "is-active-business" : "is-history-business"}`}
+                  onClick={() => isActive && onNavigate("overview")}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <span className="rail-workspace-status"><i /> {isActive ? "Active" : "Previous"}</span>
+                  <strong>{business.name}</strong>
+                </button>
+                <button
+                  type="button"
+                  className="rail-workspace-remove"
+                  aria-label={`Remove ${business.name}`}
+                  title={`Remove ${business.name}`}
+                  onClick={() => setBusinessToRemove(business.name)}
+                >
+                  <Trash2 />
+                </button>
+              </div>
             );
           })}
           <button type="button" className="rail-add-business" onClick={onAddBusiness} aria-label="Add a business">
@@ -276,6 +314,22 @@ export function ProductNav({
           </button>
         </div>
       </header>
+
+      <AlertDialog open={Boolean(businessToRemove)} onOpenChange={(open) => !open && setBusinessToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia><Trash2 /></AlertDialogMedia>
+            <AlertDialogTitle>Remove this workspace?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {businessToRemove ? `Remove ${businessToRemove} from the workspace list? This removes the saved rail entry from this browser.` : "Remove this workspace?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => businessToRemove && removeBusiness(businessToRemove)}>Remove workspace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
