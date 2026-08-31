@@ -8,6 +8,7 @@ import "./workspace-rail.css";
 import "./investigation-light.css";
 import "./investigation-agent.css";
 import "./logo-override.css";
+import "./logo-mark-fix.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 const inter = Inter({
