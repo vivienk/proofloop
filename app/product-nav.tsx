@@ -57,6 +57,23 @@ const items: Array<{
 ];
 
 const RAIL_BUSINESSES_KEY = "proofloop-rail-businesses";
+const REMOVED_BUSINESSES_KEY = "proofloop-removed-businesses";
+
+function loadRemovedBusinesses(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(REMOVED_BUSINESSES_KEY);
+    if (!raw) return [];
+    const stored = JSON.parse(raw) as string[];
+    return stored.filter((name) => typeof name === "string" && name.trim());
+  } catch {
+    return [];
+  }
+}
+
+function isRemovedBusiness(name: string) {
+  return loadRemovedBusinesses().some((removed) => removed.toLowerCase() === name.toLowerCase());
+}
 
 function loadRailBusinesses(): RailBusiness[] {
   if (typeof window === "undefined") return [{ name: "Northstar Studio", addedAt: 0 }];
@@ -64,7 +81,7 @@ function loadRailBusinesses(): RailBusiness[] {
     const raw = window.localStorage.getItem(RAIL_BUSINESSES_KEY);
     if (raw === null) return [{ name: "Northstar Studio", addedAt: 0 }];
     const stored = JSON.parse(raw) as RailBusiness[];
-    return stored.filter((item) => typeof item?.name === "string" && item.name.trim());
+    return stored.filter((item) => typeof item?.name === "string" && item.name.trim() && !isRemovedBusiness(item.name));
   } catch {
     return [{ name: "Northstar Studio", addedAt: 0 }];
   }
@@ -134,7 +151,7 @@ export function ProductNav({
   useEffect(() => {
     const sync = () => {
       const businessName = extractBusinessNameFromPage();
-      if (!businessName || businessName === "My business") return;
+      if (!businessName || businessName === "My business" || isRemovedBusiness(businessName)) return;
       setActiveBusiness(businessName);
       setBusinesses((current) => {
         const alreadyKnown = current.some((item) => item.name.toLowerCase() === businessName.toLowerCase());
@@ -178,6 +195,12 @@ export function ProductNav({
   }
 
   function removeBusiness(name: string) {
+    const removed = loadRemovedBusinesses();
+    const nextRemoved = removed.some((item) => item.toLowerCase() === name.toLowerCase())
+      ? removed
+      : [...removed, name];
+    window.localStorage.setItem(REMOVED_BUSINESSES_KEY, JSON.stringify(nextRemoved));
+
     setBusinesses((current) => {
       const next = current.filter((item) => item.name.toLowerCase() !== name.toLowerCase());
       window.localStorage.setItem(RAIL_BUSINESSES_KEY, JSON.stringify(next));
@@ -189,6 +212,16 @@ export function ProductNav({
       return next;
     });
     setBusinessToRemove(null);
+  }
+
+  function addBusiness() {
+    const removed = loadRemovedBusinesses();
+    const currentName = extractBusinessNameFromPage();
+    if (currentName) {
+      const nextRemoved = removed.filter((name) => name.toLowerCase() !== currentName.toLowerCase());
+      window.localStorage.setItem(REMOVED_BUSINESSES_KEY, JSON.stringify(nextRemoved));
+    }
+    onAddBusiness();
   }
 
   const activeLabel = items.find((item) => item.id === active)?.label ?? "Overview";
@@ -231,7 +264,7 @@ export function ProductNav({
               </div>
             );
           })}
-          <button type="button" className="rail-add-business" onClick={onAddBusiness} aria-label="Add a business">
+          <button type="button" className="rail-add-business" onClick={addBusiness} aria-label="Add a business">
             <Plus /><strong>Add a business</strong>
           </button>
         </div>
