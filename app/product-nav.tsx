@@ -9,13 +9,14 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Moon,
   Plus,
   ScanSearch,
   ShieldCheck,
   Sparkles,
+  Sun,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   firebaseConfigured,
   signInToProofLoop,
@@ -52,8 +53,18 @@ export function ProductNav({
   const [user, setUser] = useState<User | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => watchProofLoopUser(setUser), []);
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem("proofloop-theme");
+    const preferredTheme = storedTheme === "light" || storedTheme === "dark"
+      ? storedTheme
+      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = preferredTheme;
+    setTheme(preferredTheme);
+  }, []);
 
   async function signIn() {
     setAuthError(null);
@@ -69,6 +80,13 @@ export function ProductNav({
     await signOutOfProofLoop();
   }
 
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = nextTheme;
+    window.localStorage.setItem("proofloop-theme", nextTheme);
+    setTheme(nextTheme);
+  }
+
   const activeLabel = items.find((item) => item.id === active)?.label ?? "Overview";
   const accountName = user?.displayName ?? user?.email ?? "Google account";
   const accountInitial = accountName.slice(0, 1).toUpperCase();
@@ -81,11 +99,16 @@ export function ProductNav({
           <span><strong>ProofLoop</strong><em>Business diagnostic OS</em></span>
         </button>
 
-        <button type="button" className="rail-workspace-card" onClick={() => onNavigate("overview")}>
-          <span className="rail-workspace-status"><i /> Active workspace</span>
-          <strong>Northstar Studio</strong>
-          <em>{userLabel}</em>
-        </button>
+        <div className="rail-workspace-stack">
+          <button type="button" className="rail-workspace-card" onClick={() => onNavigate("overview")}>
+            <span className="rail-workspace-status"><i /> Active workspace</span>
+            <strong>Northstar Studio</strong>
+            <em>{userLabel}</em>
+          </button>
+          <button type="button" className="rail-add-business" onClick={onAddBusiness} aria-label="Add a business">
+            <Plus /><strong>Add a business</strong>
+          </button>
+        </div>
 
         <nav aria-label="Primary navigation">
           <span className="product-rail-kicker">Workspace</span>
@@ -107,22 +130,8 @@ export function ProductNav({
           })}
         </nav>
 
-        <div className="product-rail-footer">
-          <span><ShieldCheck /> Read-only evidence access</span>
-          <span><Sparkles /> Gemini + ADK</span>
-        </div>
-      </aside>
-
-      <header className="product-nav">
-        <div className="product-section-title">
-          <span>Business workspace</span>
-          <strong>{activeLabel}</strong>
-        </div>
-
-        <div className="product-nav-actions">
-          <span className="model-chip"><Sparkles /> Gemini + ADK</span>
-          <Button variant="outline" onClick={onAddBusiness}><Plus /> Add my business</Button>
-          <div className="account-menu-wrap">
+        <div className="product-rail-bottom">
+          <div className="account-menu-wrap rail-account-menu">
             {user ? (
               <>
                 <button
@@ -153,9 +162,35 @@ export function ProductNav({
                 <span>G</span><strong>Continue with Google</strong><LogIn />
               </button>
             )}
+            {authError && <div className="product-auth-error" role="alert">{authError}</div>}
+          </div>
+          <div className="product-rail-footer">
+            <span><ShieldCheck /> Read-only evidence access</span>
+            <span><Sparkles /> Gemini + ADK</span>
           </div>
         </div>
-        {authError && <div className="product-auth-error" role="alert">{authError}</div>}
+      </aside>
+
+      <header className="product-nav">
+        <div className="product-section-title">
+          <span>Business workspace</span>
+          <strong>{activeLabel}</strong>
+        </div>
+
+        <div className="product-nav-actions">
+          <span className="model-chip"><Sparkles /> Gemini + ADK</span>
+          <button
+            type="button"
+            className="theme-toggle"
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-pressed={theme === "dark"}
+            onClick={toggleTheme}
+          >
+            <Sun />
+            <span><i /></span>
+            <Moon />
+          </button>
+        </div>
       </header>
     </>
   );
