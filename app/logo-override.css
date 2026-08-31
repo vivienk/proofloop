@@ -1,0 +1,15 @@
+.product-brand-mark {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  background: url('/proofloop-brand-mark.svg') center / cover no-repeat !important;
+  box-shadow: none !important;
+}
+
+.product-brand-mark > svg {
+  display: none !important;
+}

@@ -7,6 +7,7 @@ import "./context-bubbles.css";
 import "./workspace-rail.css";
 import "./investigation-light.css";
 import "./investigation-agent.css";
+import "./logo-override.css";
 import { ClientEnhancements } from "./client-enhancements";
 
 const inter = Inter({
@@ -29,8 +30,9 @@ export const metadata: Metadata = {
   description:
     "An autonomous business diagnostic agent that detects problems, investigates evidence, acts, measures outcomes, and learns.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/proofloop-favicon.svg",
+    shortcut: "/proofloop-favicon.svg",
+    apple: "/proofloop-favicon.svg",
   },
 };
 
