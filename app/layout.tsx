@@ -9,6 +9,7 @@ import "./investigation-light.css";
 import "./investigation-agent.css";
 import "./logo-override.css";
 import "./logo-mark-fix.css";
+import "./history-timeline-fix.css";
 import { ClientEnhancements } from "./client-enhancements";
 import { HistoryTimelineBridge } from "./history-timeline-bridge";
 
