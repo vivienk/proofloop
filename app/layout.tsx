@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClientEnhancements } from "./client-enhancements";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -24,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ClientEnhancements />
+      </body>
     </html>
   );
 }
