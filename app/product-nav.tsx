@@ -27,6 +27,11 @@ import {
 
 export type ProductView = "overview" | "forensics" | "investigations" | "ledger";
 
+type RailBusiness = {
+  name: string;
+  addedAt: number;
+};
+
 const items: Array<{
   id: ProductView;
   label: string;
@@ -38,6 +43,41 @@ const items: Array<{
   { id: "investigations", label: "Investigations", number: "02", icon: BrainCircuit },
   { id: "ledger", label: "Proof Ledger", number: "03", icon: BookOpenCheck },
 ];
+
+const RAIL_BUSINESSES_KEY = "proofloop-rail-businesses";
+
+function loadRailBusinesses(): RailBusiness[] {
+  if (typeof window === "undefined") return [{ name: "Northstar Studio", addedAt: 0 }];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(RAIL_BUSINESSES_KEY) ?? "[]") as RailBusiness[];
+    const valid = stored.filter((item) => typeof item?.name === "string" && item.name.trim());
+    return valid.length ? valid : [{ name: "Northstar Studio", addedAt: 0 }];
+  } catch {
+    return [{ name: "Northstar Studio", addedAt: 0 }];
+  }
+}
+
+function extractBusinessNameFromPage(): string | null {
+  if (typeof document === "undefined") return null;
+
+  const heading = document.querySelector<HTMLElement>(".overview-heading h1")?.textContent?.trim();
+  if (heading && heading !== "Your business, reconstructed." && heading !== "Proof Ledger") return heading;
+
+  const messages = Array.from(document.querySelectorAll(".chat-bubble.assistant p"))
+    .map((node) => node.textContent?.trim() ?? "")
+    .filter(Boolean)
+    .reverse();
+
+  for (const text of messages) {
+    const reconstructed = text.match(/^I reconstructed (.+?)(?: from |\.|,)/i)?.[1]?.trim();
+    if (reconstructed) return reconstructed;
+
+    const remains = text.match(/^(.+?) remains (?:a|an) /i)?.[1]?.trim();
+    if (remains && remains.length < 80) return remains;
+  }
+
+  return null;
+}
 
 export function ProductNav({
   active,
@@ -54,6 +94,8 @@ export function ProductNav({
   const [accountOpen, setAccountOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [businesses, setBusinesses] = useState<RailBusiness[]>([{ name: "Northstar Studio", addedAt: 0 }]);
+  const [activeBusiness, setActiveBusiness] = useState("Northstar Studio");
 
   useEffect(() => watchProofLoopUser(setUser), []);
 
@@ -64,6 +106,38 @@ export function ProductNav({
       : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     document.documentElement.dataset.theme = preferredTheme;
     setTheme(preferredTheme);
+  }, []);
+
+  useEffect(() => {
+    setBusinesses(loadRailBusinesses());
+    onNavigate("forensics");
+  // The demo intentionally starts at Business Forensics once when the persistent nav mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const businessName = extractBusinessNameFromPage();
+      if (!businessName || businessName === "My business") return;
+      setActiveBusiness(businessName);
+      setBusinesses((current) => {
+        const alreadyKnown = current.some((item) => item.name.toLowerCase() === businessName.toLowerCase());
+        const next = alreadyKnown
+          ? current
+          : [...current, { name: businessName, addedAt: Date.now() }];
+        window.localStorage.setItem(RAIL_BUSINESSES_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener("proofloop-business-reconstructed", sync as EventListener);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("proofloop-business-reconstructed", sync as EventListener);
+    };
   }, []);
 
   async function signIn() {
@@ -100,11 +174,21 @@ export function ProductNav({
         </button>
 
         <div className="rail-workspace-stack">
-          <button type="button" className="rail-workspace-card" onClick={() => onNavigate("overview")}>
-            <span className="rail-workspace-status"><i /> Active workspace</span>
-            <strong>Northstar Studio</strong>
-            <em>{userLabel}</em>
-          </button>
+          {businesses.map((business) => {
+            const isActive = business.name.toLowerCase() === activeBusiness.toLowerCase();
+            return (
+              <button
+                type="button"
+                key={business.name}
+                className={`rail-workspace-card ${isActive ? "is-active-business" : "is-history-business"}`}
+                onClick={() => isActive && onNavigate("overview")}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <span className="rail-workspace-status"><i /> {isActive ? "Active" : "Previous"}</span>
+                <strong>{business.name}</strong>
+              </button>
+            );
+          })}
           <button type="button" className="rail-add-business" onClick={onAddBusiness} aria-label="Add a business">
             <Plus /><strong>Add a business</strong>
           </button>
