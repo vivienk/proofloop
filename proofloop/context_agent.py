@@ -1,13 +1,19 @@
 """ADK agent for evidence-first business reconstruction."""
 
+import json
 import os
 
 from google.adk.agents import LlmAgent
+from google.genai import types
 
 from .context_schemas import ContextAgentDecision
 
 
 MODEL = os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite")
+CONTEXT_DECISION_SCHEMA = json.dumps(
+    ContextAgentDecision.model_json_schema(),
+    separators=(",", ":"),
+)
 
 business_context_agent = LlmAgent(
     name="BusinessContextReconstructor",
@@ -17,8 +23,11 @@ business_context_agent = LlmAgent(
         "historical baseline, and scope-specific readiness state."
     ),
     output_key="business_context_decision",
-    output_schema=ContextAgentDecision,
-    instruction="""
+    generate_content_config=types.GenerateContentConfig(
+        response_mime_type="application/json",
+        temperature=0.1,
+    ),
+    instruction=f"""
 You are ProofLoop's Business Context Engine. Build context from evidence rather
 than asking the founder to complete a generic questionnaire.
 
@@ -51,5 +60,8 @@ Rules:
 
 For a new sparse workspace, return a useful partial context with RED readiness.
 Do not invent metrics, dates, owners, targets, integrations, or historical data.
+
+Return JSON only. It must validate against this contract:
+{CONTEXT_DECISION_SCHEMA}
 """,
 )

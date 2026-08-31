@@ -1,14 +1,20 @@
 """Google ADK workflow for evidence-backed business diagnosis."""
 
+import json
 import os
 
 from google.adk.agents import LlmAgent, SequentialAgent
+from google.genai import types
 
 from .connectors import load_business_evidence
 from .schemas import DiagnosticDecision, RootProblemRecord
 
 
 MODEL = os.getenv("PROOFLOOP_MODEL", "gemini-3.5-flash-lite")
+DIAGNOSTIC_DECISION_SCHEMA = json.dumps(
+    DiagnosticDecision.model_json_schema(),
+    separators=(",", ":"),
+)
 
 signal_validator = LlmAgent(
     name="SignalValidator",
@@ -195,8 +201,11 @@ compact_agent = LlmAgent(
         "Runs ProofLoop's six diagnostic proof gates in one structured model "
         "call for lower latency and higher hosted-demo reliability."
     ),
-    output_schema=DiagnosticDecision,
-    instruction="""
+    generate_content_config=types.GenerateContentConfig(
+        response_mime_type="application/json",
+        temperature=0.1,
+    ),
+    instruction=f"""
 You are ProofLoop's evidence-backed root-problem diagnostic agent. The user
 payload contains an incident, a concern, and source-labelled business evidence.
 
@@ -265,5 +274,8 @@ never be intervention_validated before the intervention produces its predicted
 result. ANALYZE -> CORRECT -> VERIFY -> STANDARDIZE -> MONITOR is the closure
 loop; this call performs only ANALYZE and plans CORRECT. Do not invent missing
 facts or claim diagnostic proof is complete.
+
+Return JSON only. It must validate against this contract:
+{DIAGNOSTIC_DECISION_SCHEMA}
 """,
 )

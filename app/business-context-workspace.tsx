@@ -164,6 +164,18 @@ type ChatMessage = { role: "assistant" | "user"; text: string; meta?: string };
 
 const API_URL = (process.env.NEXT_PUBLIC_PROOFLOOP_API_URL ?? "https://proofloop-agent.onrender.com").replace(/\/$/, "");
 const initialContext = northstarData as unknown as BusinessContext;
+const numberFormatter = new Intl.NumberFormat("en-US");
+const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const fullDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 const journey: Array<{ id: ForensicsStep; label: string }> = [
   { id: "evidence", label: "Evidence" },
@@ -192,8 +204,8 @@ function humanize(value: string) {
 
 function formatMetric(metric: Metric) {
   if (metric.unit === "%") return `${metric.current_value}%`;
-  if (metric.unit === "$" || metric.unit === "USD") return `$${metric.current_value.toLocaleString()}`;
-  return metric.current_value.toLocaleString();
+  if (metric.unit === "$" || metric.unit === "USD") return `$${numberFormatter.format(metric.current_value)}`;
+  return numberFormatter.format(metric.current_value);
 }
 
 function pathFor(values: number[], width = 520, height = 74) {
@@ -295,7 +307,7 @@ function HistoryTimeline({
                   onClick={() => setSelectedEvent(event)}
                 >
                   <span><Zap /></span>
-                  <em>{new Date(event.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</em>
+                  <em>{shortDateFormatter.format(new Date(event.date))}</em>
                 </button>
               ))}
             </div>
@@ -307,7 +319,7 @@ function HistoryTimeline({
             <thead><tr><th>Date</th><th>Event</th><th>Before → after</th><th>Ranked leads</th><th /></tr></thead>
             <tbody>{context.timeline_events.map((event) => (
               <tr key={event.event_id}>
-                <td>{new Date(event.date).toLocaleDateString()}</td>
+                <td>{fullDateFormatter.format(new Date(event.date))}</td>
                 <td><strong>{event.title}</strong><span>{humanize(event.event_type)}</span></td>
                 <td>{event.before_after}</td>
                 <td>{event.ranked_investigation_leads.join(" · ")}</td>
@@ -322,7 +334,7 @@ function HistoryTimeline({
         <article className="event-detail">
           <div className="event-icon"><GitBranch /></div>
           <div className="event-copy">
-            <span>{humanize(selectedEvent.event_type)} · {new Date(selectedEvent.date).toLocaleDateString()}</span>
+            <span>{humanize(selectedEvent.event_type)} · {fullDateFormatter.format(new Date(selectedEvent.date))}</span>
             <h3>{selectedEvent.title}</h3>
             <p>{selectedEvent.description}</p>
           </div>
@@ -355,7 +367,9 @@ function AssistantPanel({
   onSignIn: () => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, busy]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, busy]);
 
   return (
     <aside className="context-assistant">
