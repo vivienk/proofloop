@@ -49,6 +49,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BusinessContextWorkspace } from "@/app/business-context-workspace";
 import { DefineAssessment } from "@/app/define-assessment";
 import { ProductNav, type ProductView } from "@/app/product-nav";
+import {
+  InvestigationRunProvider,
+  type InvestigationRunSnapshot,
+  type PendingEvidence,
+} from "@/app/investigation-run-context";
 
 type Stage = "detect" | "investigate" | "define" | "act" | "measure" | "learn";
 
@@ -441,6 +446,7 @@ export default function Home() {
   const [diagnostic, setDiagnostic] = useState<DiagnosticEnvelope | null>(null);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([]);
 
   const rootProblem = diagnostic?.decision.root_problem;
   const intervention = diagnostic?.decision.intervention;
@@ -524,6 +530,7 @@ export default function Home() {
           concern: concern.trim(),
           user_id: "vivien",
           workspace_id: contextWorkspaceId,
+          founder_evidence: pendingEvidence.map(({ claim, suggested_source }) => ({ claim, suggested_source })),
         }),
       });
       const payload = await response.json();
@@ -536,6 +543,8 @@ export default function Home() {
       setActionStatus("ready");
       setEvaluation(null);
       setRunId(payload.run_id);
+      // Queued leads are now part of this run's record.
+      setPendingEvidence([]);
       setBackendMode("live");
       setStage("define");
       setLastUpdated("just now");
@@ -606,7 +615,29 @@ export default function Home() {
     }
   }
 
+  const investigationRun = useMemo<InvestigationRunSnapshot>(() => ({
+    apiUrl: API_URL,
+    runId,
+    incidentId,
+    status: diagnostic?.status ?? null,
+    terminationState: diagnostic?.decision.investigation?.termination_state ?? null,
+    isRunning,
+    evidenceIndex: Object.fromEntries(
+      (rootProblem?.evidence ?? []).map((item) => [item.evidence_id, { source: item.source, claim: item.claim }]),
+    ),
+    hypotheses: (rootProblem?.hypotheses ?? []).map((item) => ({ text: item.hypothesis, status: item.status })),
+    pendingEvidence,
+    addPendingEvidence: (item) =>
+      setPendingEvidence((current) =>
+        current.some((existing) => existing.claim === item.claim) || current.length >= 10
+          ? current
+          : [...current, { ...item, id: `lead-${Date.now()}` }],
+      ),
+    removePendingEvidence: (id) => setPendingEvidence((current) => current.filter((item) => item.id !== id)),
+  }), [runId, incidentId, diagnostic, isRunning, rootProblem, pendingEvidence]);
+
   function openPreparedIncident() {
+    setPendingEvidence([]);
     setIncidentId("PL-0047");
     setConcern("Paid traffic is rising while purchases are falling.");
     setContextWorkspaceId(null);
@@ -616,6 +647,7 @@ export default function Home() {
   }
 
   function createContextInvestigation(seedConcern: string, contextLink?: { workspaceId: string; idToken: string }) {
+    setPendingEvidence([]);
     setIncidentId(`PL-${new Date().toISOString().slice(5, 10).replace("-", "")}`);
     setConcern(seedConcern);
     setContextWorkspaceId(contextLink?.workspaceId ?? null);
@@ -643,7 +675,7 @@ export default function Home() {
   }
 
   return (
-    <>
+    <InvestigationRunProvider value={investigationRun}>
     <ProductNav
       active="investigations"
       onNavigate={setProductView}
@@ -1054,6 +1086,6 @@ export default function Home() {
         </footer>
       </section>
     </main>
-    </>
+    </InvestigationRunProvider>
   );
 }

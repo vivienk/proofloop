@@ -21,6 +21,14 @@ from google.genai import errors as genai_errors
 from pydantic import BaseModel, Field
 
 from proofloop.agent import compact_agent, root_agent
+from proofloop.chat_agent import CHAT_MODEL, investigation_chat_agent
+from proofloop.chat_schemas import (
+    FOUNDER_EVIDENCE_PREFIX,
+    FOUNDER_EVIDENCE_SOURCE,
+    FounderEvidence,
+    InvestigationChatReply,
+    InvestigationChatRequest,
+)
 from proofloop.connectors import load_business_evidence
 from proofloop.context_agent import business_context_agent
 from proofloop.context_schemas import (
@@ -82,7 +90,17 @@ context_runner = Runner(
     agent=business_context_agent,
     session_service=session_service,
 )
+chat_runner = Runner(
+    app_name=APP_NAME,
+    agent=investigation_chat_agent,
+    session_service=session_service,
+)
 runtime_diagnostic_runs: dict[str, dict[str, Any]] = {}
+runtime_investigation_chats: dict[str, dict[str, Any]] = {}
+# Stored chat messages per run (user + assistant). Caps cost on public demo runs.
+MAX_CHAT_MESSAGES_PER_RUN = 40
+# Recent messages sent back to the model as conversation context.
+CHAT_CONTEXT_MESSAGES = 12
 runtime_interventions: dict[str, dict[str, Any]] = {}
 runtime_business_contexts: dict[str, dict[str, Any]] = {}
 DEMO_CONTEXT_PATH = Path(__file__).resolve().parent / "data" / "business-context-northstar.json"
@@ -114,6 +132,7 @@ class DiagnoseRequest(BaseModel):
     )
     user_id: str = "demo-founder"
     workspace_id: str | None = Field(default=None, max_length=120)
+    founder_evidence: list[FounderEvidence] = Field(default_factory=list, max_length=10)
 
 
 class ApprovalRequest(BaseModel):
@@ -280,7 +299,16 @@ def _enforce_proof_gate(
     if len(returned_domains) != len(decision.investigation_graph.units):
         failed_unit_ids.append("splitter_duplicate_domain")
 
-    independent_sources = len({item.source for item in root_problem.evidence})
+    # Founder statements are leads, not corroboration: they never count toward
+    # the independent-source requirement, however the model labels them.
+    independent_sources = len(
+        {
+            item.source
+            for item in root_problem.evidence
+            if item.source != FOUNDER_EVIDENCE_SOURCE
+            and not item.evidence_id.startswith(FOUNDER_EVIDENCE_PREFIX)
+        }
+    )
     hypothesis_count = len(root_problem.hypotheses)
     alternatives_competed = hypothesis_count >= 3
     supported_hypothesis = any(
@@ -860,6 +888,23 @@ async def diagnose(
         },
         "instruction": "Run the complete diagnostic proof gate.",
     }
+    founder_statements = [
+        {
+            "evidence_id": f"{FOUNDER_EVIDENCE_PREFIX}{index + 1:02d}",
+            "source": FOUNDER_EVIDENCE_SOURCE,
+            "claim": item.claim,
+            "verification_hint": item.suggested_source,
+        }
+        for index, item in enumerate(request.founder_evidence)
+    ]
+    if founder_statements:
+        diagnostic_payload["founder_statements"] = founder_statements
+        diagnostic_payload["founder_statement_rule"] = (
+            "Founder statements are unverified leads. Use them to shape hypotheses "
+            "and discriminating tests. Cite them only with source "
+            f"'{FOUNDER_EVIDENCE_SOURCE}' and their given evidence_id. They never "
+            "count as independent corroboration."
+        )
     if EXECUTION_MODE == "compact":
         diagnostic_payload["evidence"] = load_business_evidence(request.incident_id)
 
@@ -921,10 +966,223 @@ async def diagnose(
         "agent_stages": AGENT_STAGES,
         "investigation_limits": INVESTIGATION_LIMITS,
         "decision": decision,
+        # Chat and other run-scoped endpoints authorize against these fields.
+        "access": "owner" if request.workspace_id else "public_demo",
+        "owner_user_id": runtime_user_id if request.workspace_id else None,
+        "workspace_id": request.workspace_id,
+        "founder_evidence": founder_statements,
     }
     runtime_diagnostic_runs[session_id] = envelope
     await _persist("diagnostic_runs", session_id, envelope)
     return envelope
+
+
+async def _load_diagnostic_run(run_id: str) -> dict[str, Any]:
+    diagnostic_run = runtime_diagnostic_runs.get(run_id)
+    if diagnostic_run is None:
+        diagnostic_run = await _load_record("diagnostic_runs", run_id)
+    if diagnostic_run is None:
+        raise HTTPException(status_code=404, detail="Diagnostic run was not found.")
+    return diagnostic_run
+
+
+async def _authorize_run_access(
+    diagnostic_run: dict[str, Any],
+    authorization: str | None,
+) -> str:
+    """Return the user id allowed to act on this run, or raise."""
+
+    access = diagnostic_run.get("access")
+    if access == "public_demo":
+        return "demo-founder"
+    if access == "owner":
+        user = await _require_personal_user(authorization)
+        if user.get("uid") != diagnostic_run.get("owner_user_id"):
+            raise HTTPException(status_code=403, detail="This investigation belongs to another user.")
+        return user["uid"]
+    # Runs created before access metadata existed cannot be attributed safely.
+    raise HTTPException(
+        status_code=409,
+        detail="This run predates investigation chat. Re-run the diagnosis to ask questions about it.",
+    )
+
+
+def _known_evidence_ids(decision: dict[str, Any]) -> set[str]:
+    root_problem = decision.get("root_problem", {})
+    known = {item.get("evidence_id") for item in root_problem.get("evidence", [])}
+    known.update(decision.get("problem_gate", {}).get("source_evidence_ids", []))
+    for unit in decision.get("investigation_graph", {}).get("units", []):
+        known.update(unit.get("evidence_ids", []))
+        known.update(unit.get("contradicting_evidence_ids", []))
+    for hypothesis in root_problem.get("hypotheses", []):
+        known.update(hypothesis.get("supporting_evidence_ids", []))
+        known.update(hypothesis.get("contradicting_evidence_ids", []))
+    known.discard(None)
+    known.discard("not_documented")
+    return known
+
+
+def _ground_chat_reply(
+    reply: InvestigationChatReply,
+    decision: dict[str, Any],
+) -> tuple[InvestigationChatReply, dict[str, Any]]:
+    """Recompute citation validity outside Gemini, mirroring the proof gate."""
+
+    known = _known_evidence_ids(decision)
+    cited = list(dict.fromkeys(reply.cited_evidence_ids))
+    valid = [evidence_id for evidence_id in cited if evidence_id in known]
+    rejected = [evidence_id for evidence_id in cited if evidence_id not in known]
+    reply.cited_evidence_ids = valid
+    if reply.intent != "new_evidence":
+        reply.pending_evidence = None
+
+    needs_citation = reply.intent in {"explain", "challenge", "falsify"}
+    if rejected:
+        status = "partially_grounded" if valid else "ungrounded"
+    elif needs_citation and not valid:
+        status = "ungrounded"
+    else:
+        status = "grounded"
+    return reply, {"status": status, "rejected_evidence_ids": rejected}
+
+
+def _chat_record_skeleton(run_id: str, diagnostic_run: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "access": diagnostic_run.get("access"),
+        "owner_user_id": diagnostic_run.get("owner_user_id"),
+        "messages": [],
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+async def _load_chat_record(run_id: str, diagnostic_run: dict[str, Any]) -> dict[str, Any]:
+    record = runtime_investigation_chats.get(run_id)
+    if record is None:
+        record = await _load_record("investigation_chats", run_id)
+    if record is None:
+        record = _chat_record_skeleton(run_id, diagnostic_run)
+    runtime_investigation_chats[run_id] = record
+    return record
+
+
+@app.get("/v1/investigations/{run_id}/chat")
+async def get_investigation_chat(
+    run_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    diagnostic_run = await _load_diagnostic_run(run_id)
+    await _authorize_run_access(diagnostic_run, authorization)
+    record = await _load_chat_record(run_id, diagnostic_run)
+    return {
+        "run_id": run_id,
+        "messages": record["messages"],
+        "remaining_messages": max(0, MAX_CHAT_MESSAGES_PER_RUN - len(record["messages"])),
+    }
+
+
+@app.post("/v1/investigations/{run_id}/chat")
+async def chat_with_investigation(
+    run_id: str,
+    request: InvestigationChatRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Answer a founder question from the persisted run. Never mutates the decision."""
+
+    diagnostic_run = await _load_diagnostic_run(run_id)
+    runtime_user_id = await _authorize_run_access(diagnostic_run, authorization)
+    record = await _load_chat_record(run_id, diagnostic_run)
+    if len(record["messages"]) + 2 > MAX_CHAT_MESSAGES_PER_RUN:
+        raise HTTPException(
+            status_code=429,
+            detail="This investigation reached its question limit. Re-run the diagnosis to continue.",
+        )
+
+    decision = diagnostic_run.get("decision", {})
+    conversation = [
+        {"role": message["role"], "text": message["text"]}
+        for message in record["messages"][-CHAT_CONTEXT_MESSAGES:]
+    ]
+    chat_payload = {
+        "investigation_record": {
+            "run_id": run_id,
+            "incident_id": diagnostic_run.get("incident_id"),
+            "status": diagnostic_run.get("status"),
+            "founder_evidence_used": diagnostic_run.get("founder_evidence", []),
+            "decision": decision,
+        },
+        "conversation": conversation,
+        "founder_message": request.message,
+    }
+
+    session_id = f"chat-{run_id}-{uuid.uuid4().hex[:8]}"
+    await session_service.create_session(
+        app_name=APP_NAME,
+        user_id=runtime_user_id,
+        session_id=session_id,
+    )
+    final_text = ""
+    try:
+        async for event in chat_runner.run_async(
+            user_id=runtime_user_id,
+            session_id=session_id,
+            new_message=types.Content(
+                role="user",
+                parts=[types.Part(text=json.dumps(chat_payload))],
+            ),
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                final_text = event.content.parts[0].text or ""
+    except genai_errors.APIError as exc:
+        retryable = exc.code in {429, 500, 502, 503, 504}
+        raise HTTPException(
+            status_code=503 if retryable else 502,
+            detail={
+                "code": "gemini_temporarily_unavailable" if retryable else "gemini_request_failed",
+                "message": (
+                    "Gemini could not answer right now. Try again in a moment."
+                    if retryable
+                    else "Gemini rejected the question."
+                ),
+                "provider_status": exc.status,
+            },
+        ) from exc
+    finally:
+        await session_service.delete_session(
+            app_name=APP_NAME,
+            user_id=runtime_user_id,
+            session_id=session_id,
+        )
+
+    try:
+        reply = InvestigationChatReply.model_validate(json.loads(final_text))
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="The agent reply did not satisfy the investigation chat contract.",
+        ) from exc
+
+    reply, grounding = _ground_chat_reply(reply, decision)
+    now = datetime.now(UTC).isoformat()
+    user_message = {"id": uuid.uuid4().hex[:12], "role": "user", "text": request.message, "created_at": now}
+    assistant_message = {
+        "id": uuid.uuid4().hex[:12],
+        "role": "assistant",
+        "text": reply.answer,
+        "created_at": now,
+        "reply": reply.model_dump(mode="json"),
+        "grounding": grounding,
+        "model": CHAT_MODEL,
+    }
+    record["messages"].extend([user_message, assistant_message])
+    record["updated_at"] = now
+    await _persist("investigation_chats", run_id, record)
+
+    return {
+        "run_id": run_id,
+        "messages": [user_message, assistant_message],
+        "remaining_messages": max(0, MAX_CHAT_MESSAGES_PER_RUN - len(record["messages"])),
+    }
 
 
 @app.post("/v1/interventions/{run_id}/approve")

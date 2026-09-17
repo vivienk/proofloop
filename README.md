@@ -168,6 +168,25 @@ curl -X POST http://127.0.0.1:8080/v1/interventions/RUN_ID/approve \
 curl -X POST http://127.0.0.1:8080/v1/interventions/RUN_ID/evaluate
 ```
 
+Ask questions about a completed run. Answers come only from the persisted
+record, and Python strips any cited evidence ID that isn't in it. Chat can never
+change the decision. Founder-supplied facts come back as `pending_evidence`,
+which the frontend sends to the next `/v1/diagnose` call as `founder_evidence`.
+Those statements never count toward the independent-source requirement.
+
+```bash
+curl -X POST http://127.0.0.1:8080/v1/investigations/RUN_ID/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Why did you rule out ad traffic?"}'
+```
+
+Run the contract tests (Gemini is scripted, so no API key is needed):
+
+```bash
+pip install pytest
+python -m pytest tests
+```
+
 ## Render backend deployment
 
 `render.yaml` deploys the existing Dockerized FastAPI/ADK service as a Render web service. Create a Render Blueprint from this repository and provide the three secret values requested during setup:

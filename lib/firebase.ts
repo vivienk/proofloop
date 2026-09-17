@@ -45,4 +45,11 @@ export async function signOutOfProofLoop() {
   await signOut(getAuth(app()));
 }
 
+/** Fresh ID token for the signed-in user, or null for guests. Tokens refresh automatically. */
+export async function getProofLoopIdToken() {
+  if (!firebaseConfigured) return null;
+  const user = getAuth(app()).currentUser;
+  return user ? user.getIdToken() : null;
+}
+
 export type { User };
